@@ -34,7 +34,7 @@ app.use("/citasm",CitasMRouter)
 
 const logger = bunyan.createLogger({name: "Servidor"});
 
-let puerto = process.env.PORT || 10000;
+let puerto = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
