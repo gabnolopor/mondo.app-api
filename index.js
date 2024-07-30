@@ -12,8 +12,14 @@ const citasRouter = require("./routes/citas-router");
 const CitasMRouter = require("./routes/citasm-router");
 
 const app = express();
+const corsOptions = {
+    origin: 'https://mondo.com.es', // Dominio permitido
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // Permite el uso de cookies
+    optionsSuccessStatus: 204
+};
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
