@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "pm2 start ecosystem.config.js --env production"
+    "start": "nodemon index.js"
   },
   "author": "",
   "license": "ISC",
