@@ -2,7 +2,7 @@ require("dotenv").config();
 
 module.exports = {
     apps: [{
-      name: "mondo-app",
+      name: "mondo.app-api",
       script: "./index.js",
       instances: 1,
       autorestart: true,
@@ -13,7 +13,7 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        PORT: process.env.PORT  // Asegúrate de que PM2 también usa la variable de entorno PORT
+        PORT: process.env.PORT || 10000  // Asegúrate de que PM2 también usa la variable de entorno PORT
       }
     }]
   };
