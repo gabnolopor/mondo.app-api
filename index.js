@@ -5,6 +5,8 @@ const bunyan = require("bunyan");
 
 require("dotenv").config();
 
+const conexion = require("./database");
+
 const ritualesRouter = require("./routes/rituales-router");
 const adminRouter = require("./routes/admin-router");
 const masajesRouter = require("./routes/masajes-router");
@@ -51,7 +53,14 @@ const logger = bunyan.createLogger({name: "Servidor"});
 let puerto = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    conexion.query('SELECT 1', (err, results) => {
+        if (err) {
+            logger.error("Error en la consulta de la base de datos", err);
+            return res.status(500).send('Internal Server Error');
+        } else {
+            return res.status(200).send('OK');
+        }
+    });
 });
 
 app.listen(puerto, () => {
