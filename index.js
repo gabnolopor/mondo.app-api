@@ -12,10 +12,20 @@ const citasRouter = require("./routes/citas-router");
 const CitasMRouter = require("./routes/citasm-router");
 
 const app = express();
+const allowedOrigins = ['https://mondo.com.es', 'https://mondo-app-api.onrender.com'];
+
 const corsOptions = {
-    origin: 'https://mondo.com.es', // Dominio permitido
+    origin: (origin, callback) => {
+        // Permitir solicitudes sin encabezado Origin
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        } else {
+            return callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true, // Permite el uso de cookies
+    credentials: true,
     optionsSuccessStatus: 204
 };
 
@@ -28,14 +38,13 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
-app.use( express.static( path.join(__dirname,"public") ) );
+app.use(express.static(path.join(__dirname, "public")));
 
-app.use("/masajes",masajesRouter)
-app.use("/rituales",ritualesRouter)
-app.use("/admin",adminRouter)
-app.use("/citas",citasRouter)
-app.use("/citasm",CitasMRouter)
-
+app.use("/masajes", masajesRouter);
+app.use("/rituales", ritualesRouter);
+app.use("/admin", adminRouter);
+app.use("/citas", citasRouter);
+app.use("/citasm", CitasMRouter);
 
 const logger = bunyan.createLogger({name: "Servidor"});
 
@@ -45,6 +54,6 @@ app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
 
-app.listen(puerto, ()=>{
-    logger.info("Servidor Levantado")
-})
+app.listen(puerto, () => {
+    logger.info("Servidor Levantado");
+});
