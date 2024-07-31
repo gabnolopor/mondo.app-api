@@ -30,7 +30,7 @@ const corsOptions = {
 };
 
 app.use((req, res, next) => {
-    console.log("Origin:", req.headers.origin);
+    console.log(`Method: ${req.method}, URL: ${req.url}, Origin: ${req.headers.origin}`);
     next();
 });
 
