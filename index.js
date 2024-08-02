@@ -14,7 +14,7 @@ const citasRouter = require("./routes/citas-router");
 const CitasMRouter = require("./routes/citasm-router");
 
 const app = express();
-const allowedOrigins = ['https://mondo.com.es'];
+const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es'];
 
 const corsOptions = {
     origin: (origin, callback) => {
