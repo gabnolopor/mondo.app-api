@@ -63,10 +63,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 app.listen(puerto, () => {
     logger.info("Servidor Levantado");
 });
