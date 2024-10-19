@@ -1,6 +1,7 @@
 const conexion = require("../database");
 
 const citasMController = {
+    //funcion para obtener las citas
     getCitas(req, res) {
         let comandoCitas = "SELECT * FROM citasm";
         conexion.query(comandoCitas, (err, resultados, campos) => {
@@ -11,7 +12,7 @@ const citasMController = {
             res.json(resultados).status(200);
         });
     },
-
+    //funcion para eliminar una cita
     deleteCita(req, res) {
         let id = req.params.telefono;
         let comandoEliminar = "DELETE FROM citasm WHERE telefono = ?";
@@ -23,16 +24,17 @@ const citasMController = {
             }
         });
     },
-
+    //funcion para crear una cita
     createCita(req, res) {
         let { nombre, correo, telefono, masaje, mensaje } = req.body;
-        let comandoCreate = "INSERT INTO citasm (nombre, correo, telefono, masaje, mensaje) VALUES (?, ?, ?, ?, ?)";
+        let comandoCreate = "INSERT INTO citasm (nombre, correo, telefono, masaje, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
         conexion.query(comandoCreate, [nombre, correo, telefono, masaje, mensaje], (err, resultados) => {
             if (err) {
-                res.status(500).json({ error: err.message });
+                console.error("Database error:", err);
+                res.status(500).json({ error: "Error al crear la cita", details: err.message });
                 return;
             }
-            res.sendStatus(200);
+            res.status(200).json({ message: "Cita creada exitosamente" });
         });
     }
 };

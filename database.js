@@ -6,7 +6,7 @@ const logger = bunyan.createLogger({name: "Base de Datos"});
 
 require("dotenv").config();
 
-
+//configuracion de conexion a la base de datos
 const conexion = mysql.createConnection({
     host:process.env.DB_HOST,
     user:process.env.DB_USER,

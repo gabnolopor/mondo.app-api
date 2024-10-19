@@ -2,20 +2,24 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const bunyan = require("bunyan");
+const session = require('express-session');
 
 require("dotenv").config();
 
 const conexion = require("./database");
 
+//declaracion de rutas
 const ritualesRouter = require("./routes/rituales-router");
 const adminRouter = require("./routes/admin-router");
 const masajesRouter = require("./routes/masajes-router");
 const citasRouter = require("./routes/citas-router");
 const CitasMRouter = require("./routes/citasm-router");
-
+const clientsRouter = require("./routes/clients-router");
+const servicesRouter = require("./routes/services-router");
+const profileRouter = require("./routes/profile-router");
 const app = express();
-const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es'];
 
+const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es'];
 const corsOptions = {
     origin: (origin, callback) => {
         // Permitir solicitudes sin encabezado Origin
@@ -30,26 +34,43 @@ const corsOptions = {
     credentials: true,
     optionsSuccessStatus: 204
 };
-
 app.use((req, res, next) => {
     console.log(`Method: ${req.method}, URL: ${req.url}, Origin: ${req.headers.origin}`);
     next();
 });
 
+//configuracion de cors
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
-app.use(express.static(path.join(__dirname, "public")));
+//configuracion de session
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none'
+     }
+}));
 
+//configuracion de static
+app.use(express.static(path.join(__dirname,"public")));
+
+//configuracion de rutas
 app.use("/masajes", masajesRouter);
 app.use("/rituales", ritualesRouter);
 app.use("/admin", adminRouter);
 app.use("/citas", citasRouter);
 app.use("/citasm", CitasMRouter);
+app.use("/clients", clientsRouter);
+app.use("/services", servicesRouter);
+app.use("/profile", profileRouter);
 
-const logger = bunyan.createLogger({name: "Servidor"});
+//configuracion de logger
+const logger = bunyan.createLogger({name: "ServidorMondo"});
 
+//configuracion de puerto
 let puerto = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {

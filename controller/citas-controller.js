@@ -1,6 +1,7 @@
 const conexion = require("../database");
 
 const citasController = {
+    //funcion para obtener las citas
     getCitas(req, res) {
         let comandoCitas = "SELECT * FROM citas";
         conexion.query(comandoCitas, (err, resultados, campos) => {
@@ -12,7 +13,7 @@ const citasController = {
             }
         });
     },
-
+    //funcion para eliminar una cita
     deleteCita(req, res) {
         let id = req.params.telefono;
         let comandoEliminar = "DELETE FROM citas WHERE telefono = ?";
@@ -25,10 +26,10 @@ const citasController = {
             }
         });
     },
-
+    //funcion para crear una cita
     createCita(req, res) {
         let { nombre, correo, telefono, ritual, mensaje } = req.body;
-        let comandoCreate = "INSERT INTO citas (nombre, correo, telefono, ritual, mensaje) VALUES (?, ?, ?, ?, ?)";
+        let comandoCreate = "INSERT INTO citas (nombre, correo, telefono, ritual, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
         conexion.query(comandoCreate, [nombre, correo, telefono, ritual, mensaje], (err, resultados) => {
             if (err) {
                 console.error("Error al crear la cita:", err);
