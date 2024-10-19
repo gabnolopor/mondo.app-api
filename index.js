@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const bunyan = require("bunyan");
-const session = require('express-session');
+
 
 require("dotenv").config();
 
@@ -44,15 +44,6 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
-//configuracion de session
-app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none'
-     }
-}));
 
 //configuracion de static
 app.use(express.static(path.join(__dirname,"public")));
