@@ -14,9 +14,12 @@ const adminRouter = require("./routes/admin-router");
 const masajesRouter = require("./routes/masajes-router");
 const citasRouter = require("./routes/citas-router");
 const CitasMRouter = require("./routes/citasm-router");
+const CitasFRouter = require("./routes/citasf-router");
 const clientsRouter = require("./routes/clients-router");
 const servicesRouter = require("./routes/services-router");
 const profileRouter = require("./routes/profile-router");
+const facialesRouter = require("./routes/faciales-router");
+
 const app = express();
 
 const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es'];
@@ -54,9 +57,11 @@ app.use("/rituales", ritualesRouter);
 app.use("/admin", adminRouter);
 app.use("/citas", citasRouter);
 app.use("/citasm", CitasMRouter);
+app.use("/citasf", CitasFRouter);
 app.use("/clients", clientsRouter);
 app.use("/services", servicesRouter);
 app.use("/profile", profileRouter);
+app.use("/faciales", facialesRouter);
 
 //configuracion de logger
 const logger = bunyan.createLogger({name: "ServidorMondo"});
