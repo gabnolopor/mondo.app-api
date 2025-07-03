@@ -19,6 +19,7 @@ const clientsRouter = require("./routes/clients-router");
 const servicesRouter = require("./routes/services-router");
 const profileRouter = require("./routes/profile-router");
 const facialesRouter = require("./routes/faciales-router");
+const qrRouter = require("./routes/qr-router");
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use("/clients", clientsRouter);
 app.use("/services", servicesRouter);
 app.use("/profile", profileRouter);
 app.use("/faciales", facialesRouter);
+app.use("/qr", qrRouter);
 
 //configuracion de logger
 const logger = bunyan.createLogger({name: "ServidorMondo"});
