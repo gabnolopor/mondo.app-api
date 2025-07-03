@@ -1,7 +1,7 @@
 const conexion = require("../database");
 
 const ritualesController = {
-
+    //funcion para obtener los rituales
     getRituales(req, res) {
         let comandoRituales = "SELECT * FROM rituales";
         conexion.query(comandoRituales, (err, resultados, campos) => {
@@ -13,6 +13,7 @@ const ritualesController = {
         });
     },
 
+    //funcion para obtener los ultimos rituales
     getLatestRituales(req, res) {
         let comandoRituales = "SELECT * FROM rituales ORDER BY id_ritual DESC";
         conexion.query(comandoRituales, (err, resultados, campos) => {
@@ -24,6 +25,7 @@ const ritualesController = {
         });
     },
 
+    //funcion para registrar un ritual
     ritualFormSubmit(req, res) {
         let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
         let comandoForm = "INSERT INTO rituales (nombre_ritual, descripcion_ritual, precio_ritual, precio_ritualPareja, duracion_ritual) VALUES (?, ?, ?, ?, ?)";
@@ -36,6 +38,7 @@ const ritualesController = {
         });
     },
 
+    //funcion para actualizar un ritual
     updateRitual(req, res) {
         let { id } = req.params;
         let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
@@ -49,6 +52,7 @@ const ritualesController = {
         });
     },
 
+    //funcion para eliminar un ritual
     deleteRitual(req, res) {
         let { id } = req.params;
         let comandoDelete = "DELETE FROM rituales WHERE id_ritual = ?";
