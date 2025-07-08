@@ -23,7 +23,7 @@ const qrRouter = require("./routes/qr-router");
 
 const app = express();
 
-const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es'];
+const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es','http://localhost:5173'];
 const corsOptions = {
     origin: (origin, callback) => {
         // Permitir solicitudes sin encabezado Origin
