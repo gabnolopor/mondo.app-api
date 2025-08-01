@@ -20,10 +20,12 @@ const servicesRouter = require("./routes/services-router");
 const profileRouter = require("./routes/profile-router");
 const facialesRouter = require("./routes/faciales-router");
 const qrRouter = require("./routes/qr-router");
+const paymentsRouter = require("./routes/payments-router");
+const productsRouter = require("./routes/products-router");
 
 const app = express();
 
-const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es'];
+const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es', 'http://localhost:5173'];
 const corsOptions = {
     origin: (origin, callback) => {
         // Permitir solicitudes sin encabezado Origin
@@ -64,6 +66,8 @@ app.use("/services", servicesRouter);
 app.use("/profile", profileRouter);
 app.use("/faciales", facialesRouter);
 app.use("/qr", qrRouter);
+app.use("/payments", paymentsRouter);
+app.use("/products", productsRouter);
 
 //configuracion de logger
 const logger = bunyan.createLogger({name: "ServidorMondo"});
