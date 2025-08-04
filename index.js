@@ -77,43 +77,30 @@ app.use("/qr", qrRouter);
 app.use("/payments", paymentsRouter);
 app.use("/products", productsRouter);
 
-// Middleware de manejo de errores global
-app.use((err, req, res, next) => {
-    console.error('❌ Error global:', err);
-    logger.error("Error no manejado:", err);
-    
-    // Si es un error de CORS
-    if (err.message === 'Not allowed by CORS') {
-        return res.status(403).json({ error: 'CORS not allowed' });
-    }
-    
-    // Error genérico
-    res.status(500).json({ 
-        error: 'Internal Server Error',
-        message: 'Something went wrong'
-    });
-});
-
-// Middleware para rutas no encontradas
-app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-});
-
 //configuracion de puerto
 let puerto = process.env.PORT || 3000;
 
 // Endpoint de root simple
 app.get('/', (req, res) => {
+    console.log('🔧 Root GET request received');
+    console.log('🔧 Sending root response...');
     res.status(200).send('Mondo API is running');
+    console.log('✅ Root response sent');
 });
 
 app.get('/health', (req, res) => {
+    console.log('🔧 Health check GET request received');
+    console.log('🔧 Sending response...');
     res.status(200).send('OK');
+    console.log('✅ Health check response sent');
 });
 
 // Manejar peticiones HEAD también
 app.head('/health', (req, res) => {
+    console.log('🔧 Health check HEAD request received');
+    console.log('🔧 Sending HEAD response...');
     res.status(200).end();
+    console.log('✅ Health check HEAD response sent');
 });
 
 // Health check más detallado (opcional)
@@ -135,6 +122,28 @@ app.get('/health/detailed', (req, res) => {
             });
         }
     });
+});
+
+// Middleware de manejo de errores global
+app.use((err, req, res, next) => {
+    console.error('❌ Error global:', err);
+    logger.error("Error no manejado:", err);
+    
+    // Si es un error de CORS
+    if (err.message === 'Not allowed by CORS') {
+        return res.status(403).json({ error: 'CORS not allowed' });
+    }
+    
+    // Error genérico
+    res.status(500).json({ 
+        error: 'Internal Server Error',
+        message: 'Something went wrong'
+    });
+});
+
+// Middleware para rutas no encontradas
+app.use('*', (req, res) => {
+    res.status(404).json({ error: 'Route not found' });
 });
 
 app.listen(puerto, () => {
