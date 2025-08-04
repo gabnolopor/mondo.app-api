@@ -102,12 +102,43 @@ app.use('*', (req, res) => {
 //configuracion de puerto
 let puerto = process.env.PORT || 3000;
 
-app.get('/health', (req, res) => {
+// Endpoint de root simple
+app.get('/', (req, res) => {
     res.status(200).json({ 
-        status: 'OK', 
+        message: 'Mondo API is running',
         timestamp: new Date().toISOString(),
         service: 'Mondo API'
     });
+});
+
+app.get('/health', (req, res) => {
+    console.log('🔧 Health check request received');
+    console.log('🔧 Request headers:', req.headers);
+    console.log('🔧 Request method:', req.method);
+    console.log('🔧 Request URL:', req.url);
+    
+    try {
+        res.status(200).json({ 
+            status: 'OK', 
+            timestamp: new Date().toISOString(),
+            service: 'Mondo API',
+            message: 'Health check successful'
+        });
+        console.log('✅ Health check response sent successfully');
+    } catch (error) {
+        console.error('❌ Error in health check:', error);
+        res.status(500).json({ 
+            status: 'ERROR',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Manejar peticiones HEAD también
+app.head('/health', (req, res) => {
+    console.log('🔧 Health check HEAD request received');
+    res.status(200).end();
 });
 
 // Health check más detallado (opcional)
