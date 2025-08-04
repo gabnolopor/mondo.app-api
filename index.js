@@ -103,12 +103,30 @@ app.use('*', (req, res) => {
 let puerto = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        service: 'Mondo API'
+    });
+});
+
+// Health check más detallado (opcional)
+app.get('/health/detailed', (req, res) => {
     conexion.query('SELECT 1', (err, results) => {
         if (err) {
             logger.error("Error en la consulta de la base de datos", err);
-            return res.status(500).send('Internal Server Error');
+            return res.status(500).json({ 
+                status: 'ERROR',
+                error: 'Database connection failed',
+                timestamp: new Date().toISOString()
+            });
         } else {
-            return res.status(200).send('OK');
+            return res.status(200).json({ 
+                status: 'OK',
+                database: 'Connected',
+                timestamp: new Date().toISOString(),
+                service: 'Mondo API'
+            });
         }
     });
 });
