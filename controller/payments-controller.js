@@ -134,8 +134,8 @@ const paymentsController = {
                     quantity: 1,
                 }],
                 mode: 'payment',
-                success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/?payment=success`,
-                cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/?payment=cancelled`,
+                success_url: `${process.env.CLIENT_URL}/?payment=success`,
+                cancel_url: `${process.env.CLIENT_URL}/?payment=cancelled`,
                 metadata: {
                     customerName,
                     customerEmail,
