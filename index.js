@@ -90,7 +90,7 @@ app.use((err, req, res, next) => {
     // Error genérico
     res.status(500).json({ 
         error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+        message: 'Something went wrong'
     });
 });
 
@@ -104,40 +104,15 @@ let puerto = process.env.PORT || 3000;
 
 // Endpoint de root simple
 app.get('/', (req, res) => {
-    res.status(200).json({ 
-        message: 'Mondo API is running',
-        timestamp: new Date().toISOString(),
-        service: 'Mondo API'
-    });
+    res.status(200).send('Mondo API is running');
 });
 
 app.get('/health', (req, res) => {
-    console.log('🔧 Health check request received');
-    console.log('🔧 Request headers:', req.headers);
-    console.log('🔧 Request method:', req.method);
-    console.log('🔧 Request URL:', req.url);
-    
-    try {
-        res.status(200).json({ 
-            status: 'OK', 
-            timestamp: new Date().toISOString(),
-            service: 'Mondo API',
-            message: 'Health check successful'
-        });
-        console.log('✅ Health check response sent successfully');
-    } catch (error) {
-        console.error('❌ Error in health check:', error);
-        res.status(500).json({ 
-            status: 'ERROR',
-            error: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
+    res.status(200).send('OK');
 });
 
 // Manejar peticiones HEAD también
 app.head('/health', (req, res) => {
-    console.log('🔧 Health check HEAD request received');
     res.status(200).end();
 });
 
