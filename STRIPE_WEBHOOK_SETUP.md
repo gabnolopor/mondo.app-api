@@ -31,7 +31,7 @@ El pago se procesa correctamente, pero **no llegan los webhooks** de Stripe, por
 ### **4. Configurar Variables de Entorno**
 ```env
 # En server/.env
-STRIPE_WEBHOOK_SECRET=whsec_bK2dvIBNxRE50D1nmJHlWngZYPkDgkQE
+STRIPE_WEBHOOK_SECRET=whsec...
 ```
 
 ## 🔍 Verificar Configuración
