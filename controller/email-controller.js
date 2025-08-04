@@ -12,7 +12,7 @@ const createTransporter = () => {
 
     console.log('✅ Configurando transporter de email con:', process.env.EMAIL_USER);
     
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
         service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER,
@@ -172,17 +172,16 @@ const generateEmailHTML = (bookingData, qrCode) => {
 
                 <div class="contact-info">
                     <h4>📍 Ubicación:</h4>
-                    <p>Calle Principal 123, Madrid</p>
-                    <h4>📞 Contacto:</h4>
-                    <p>Teléfono: +34 603 132 929</p>
+                    <p>Doctor Caro Romero #7</p>
+                    <h4>📞 Contacto: +34 603132929</h4>
                     <p>WhatsApp: <a href="https://wa.me/34603132929">+34 603 132 929</a></p>
                 </div>
 
                 <div class="footer">
                     <p>Gracias por elegir MONDO</p>
                     <p>Para cualquier consulta, no dudes en contactarnos</p>
-                    <p>© 2024 MONDO - Todos los derechos reservados</p>
-                </div>
+                    <p>© ${new Date().getFullYear()} MONDO - Todos los derechos reservados</p>
+                </div>  
             </div>
         </body>
         </html>
