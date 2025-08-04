@@ -6,7 +6,7 @@ const paymentsController = require('../controller/payments-controller');
 router.post('/create-session', paymentsController.createPaymentSession);
 
 // Webhook de Stripe
-router.post('/webhook', express.raw({ type: 'application/json' }), paymentsController.handleWebhook);
+router.post('/webhook', paymentsController.handleWebhook);
 
 // Obtener reservas pagadas
 router.get('/bookings', paymentsController.getPaidBookings);

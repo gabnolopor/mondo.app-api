@@ -8,6 +8,9 @@ require("dotenv").config();
 
 const conexion = require("./database");
 
+//configuracion de logger
+const logger = bunyan.createLogger({name: "ServidorMondo"});
+
 //declaracion de rutas
 const ritualesRouter = require("./routes/rituales-router");
 const adminRouter = require("./routes/admin-router");
@@ -47,6 +50,11 @@ app.use((req, res, next) => {
 
 //configuracion de cors
 app.use(cors(corsOptions));
+
+// Configurar raw body para webhooks de Stripe
+app.use('/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Configurar JSON parsing para todas las demás rutas
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
@@ -69,8 +77,27 @@ app.use("/qr", qrRouter);
 app.use("/payments", paymentsRouter);
 app.use("/products", productsRouter);
 
-//configuracion de logger
-const logger = bunyan.createLogger({name: "ServidorMondo"});
+// Middleware de manejo de errores global
+app.use((err, req, res, next) => {
+    console.error('❌ Error global:', err);
+    logger.error("Error no manejado:", err);
+    
+    // Si es un error de CORS
+    if (err.message === 'Not allowed by CORS') {
+        return res.status(403).json({ error: 'CORS not allowed' });
+    }
+    
+    // Error genérico
+    res.status(500).json({ 
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    });
+});
+
+// Middleware para rutas no encontradas
+app.use('*', (req, res) => {
+    res.status(404).json({ error: 'Route not found' });
+});
 
 //configuracion de puerto
 let puerto = process.env.PORT || 3000;
