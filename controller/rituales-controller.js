@@ -1,6 +1,16 @@
 const conexion = require("../database");
 
 const ritualesController = {
+    // Endpoint de prueba simple
+    testEndpoint(req, res) {
+        console.log('🔧 Test endpoint called');
+        res.status(200).json({ 
+            message: 'Rituales endpoint is working',
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV || 'development'
+        });
+    },
+
     //funcion para obtener los rituales
     getRituales(req, res) {
         let comandoRituales = "SELECT * FROM rituales";
