@@ -15,12 +15,38 @@ const ritualesController = {
 
     //funcion para obtener los ultimos rituales
     getLatestRituales(req, res) {
+        console.log('🔧 getLatestRituales called');
+        console.log('🔧 Environment variables check:');
+        console.log('   DB_HOST:', process.env.DB_HOST ? 'Set' : 'Not set');
+        console.log('   DB_USER:', process.env.DB_USER ? 'Set' : 'Not set');
+        console.log('   DB_DATABASE:', process.env.DB_DATABASE ? 'Set' : 'Not set');
+        console.log('   DB_PORT:', process.env.DB_PORT ? 'Set' : 'Not set');
+        
+        if (!conexion) {
+            console.error('❌ Database connection is null');
+            return res.status(500).json({ error: 'Database connection not available' });
+        }
+        
+        console.log('🔧 Database connection status:', conexion ? 'Connected' : 'Not connected');
+        
         let comandoRituales = "SELECT * FROM rituales ORDER BY id_ritual DESC";
+        console.log('🔧 SQL Query:', comandoRituales);
+        
         conexion.query(comandoRituales, (err, resultados, campos) => {
             if (err) {
-                res.status(500).json({ error: err.message });
+                console.error('❌ Database error in getLatestRituales:', err);
+                console.error('❌ Error message:', err.message);
+                console.error('❌ Error code:', err.code);
+                console.error('❌ SQL State:', err.sqlState);
+                res.status(500).json({ 
+                    error: err.message,
+                    code: err.code,
+                    sqlMessage: err.sqlMessage,
+                    sqlState: err.sqlState
+                });
                 return;
             }
+            console.log('✅ getLatestRituales successful, results count:', resultados.length);
             res.json(resultados).status(200);
         });
     },
