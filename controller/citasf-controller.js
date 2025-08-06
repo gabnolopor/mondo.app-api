@@ -2,7 +2,7 @@ const { conexion, ensureConnection } = require("../database");
 
 const citasfController = {
     //funcion para obtener las citas
-    getCitas(req, res) {
+    getCitasF(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
@@ -20,7 +20,7 @@ const citasfController = {
     },
 
     //funcion para eliminar una cita
-    deleteCita(req, res) {
+    deleteCitaF(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
@@ -39,7 +39,7 @@ const citasfController = {
     },
 
     //funcion para crear una cita
-    createCita(req, res) {
+    createCitaF (req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
