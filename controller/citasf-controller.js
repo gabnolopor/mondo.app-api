@@ -1,7 +1,7 @@
 const { conexion, ensureConnection } = require("../database");
 
 const citasfController = {
-    //funcion para obtener las citas
+    //function to get facial appointments
     getCitasF(req, res) {
         ensureConnection((err) => {
             if (err) {
@@ -11,15 +11,16 @@ const citasfController = {
             let comandoCitas = "SELECT * FROM citasf";
             conexion.query(comandoCitas, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al obtener las citas faciales:", err);
+                    res.status(500).json({ error: "Error al obtener las citas faciales" });
+                } else {
+                    res.status(200).json(resultados);
                 }
-                res.json(resultados).status(200);
             });
         });
     },
 
-    //funcion para eliminar una cita
+    //function to delete a facial appointment
     deleteCitaF(req, res) {
         ensureConnection((err) => {
             if (err) {
@@ -30,29 +31,31 @@ const citasfController = {
             let comandoEliminar = "DELETE FROM citasf WHERE id = ?";
             conexion.query(comandoEliminar, [id], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al eliminar la cita facial:", err);
+                    res.status(500).json({ error: "Error al eliminar la cita facial" });
+                } else {
+                    res.status(200).json({ message: "Cita facial eliminada correctamente" });
                 }
-                res.sendStatus(200);
             });
         });
     },
 
-    //funcion para crear una cita
-    createCitaF (req, res) {
+    //function to create a facial appointment
+    createCitaF(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
             let { nombre, correo, telefono, facial, mensaje } = req.body;
-            let comandoCreate = "INSERT INTO citasf (nombre, correo, telefono, facial, mensaje) VALUES (?, ?, ?, ?, ?)";
+            let comandoCreate = "INSERT INTO citasf (nombre, correo, telefono, facial, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
             conexion.query(comandoCreate, [nombre, correo, telefono, facial, mensaje], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al crear la cita facial:", err);
+                    res.status(500).json({ error: "Error al crear la cita facial" });
+                } else {
+                    res.status(200).json({ message: "Cita facial creada correctamente" });
                 }
-                res.sendStatus(200);
             });
         });
     }
