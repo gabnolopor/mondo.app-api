@@ -1,158 +1,217 @@
-const { conexion, ensureConnection } = require("../database");
+const { conexion, ensureConnection } = require('../database');
 
 const productsController = {
-    //funcion para obtener todos los productos
-    getProducts(req, res) {
-        ensureConnection((err) => {
-            if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
-            }
-            
-            let query = "SELECT * FROM products WHERE active = 1";
-            conexion.query(query, (err, results) => {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                res.json(results);
-            });
-        });
-    },
-
-    //funcion para obtener todos los productos (admin)
+    // Obtener todos los productos
     getAllProducts(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let query = "SELECT * FROM products";
+            const query = 'SELECT * FROM products WHERE active = true ORDER BY created_at DESC';
+            
             conexion.query(query, (err, results) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error fetching products:', err);
+                    return res.status(500).json({ error: 'Error fetching products' });
                 }
                 res.json(results);
             });
         });
     },
 
-    //funcion para obtener un producto por ID
+    // Obtener todos los productos (admin - incluye inactivos)
+    getAllProductsAdmin(req, res) {
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            const query = 'SELECT * FROM products ORDER BY created_at DESC';
+            
+            conexion.query(query, (err, results) => {
+                if (err) {
+                    console.error('Error fetching products:', err);
+                    return res.status(500).json({ error: 'Error fetching products' });
+                }
+                res.json(results);
+            });
+        });
+    },
+
+    // Obtener un producto por ID
     getProductById(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let query = "SELECT * FROM products WHERE id = ?";
+            const { id } = req.params;
+            
+            const query = 'SELECT * FROM products WHERE id = ?';
+            
             conexion.query(query, [id], (err, results) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error fetching product:', err);
+                    return res.status(500).json({ error: 'Error fetching product' });
                 }
+                
                 if (results.length === 0) {
-                    res.status(404).json({ error: 'Product not found' });
-                    return;
+                    return res.status(404).json({ error: 'Product not found' });
                 }
+                
                 res.json(results[0]);
             });
         });
     },
 
-    //funcion para crear un producto
+    // Crear un nuevo producto
     createProduct(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { name, description, price, stock } = req.body;
-            let query = "INSERT INTO products (name, description, price, stock, active) VALUES (?, ?, ?, ?, 1)";
+            const { name, description, price, stock } = req.body;
+            
+            if (!name || !description || !price || stock === undefined) {
+                return res.status(400).json({ error: 'Todos los campos son requeridos' });
+            }
+
+            const query = `
+                INSERT INTO products (name, description, price, stock, active) 
+                VALUES (?, ?, ?, ?, true)
+            `;
+            
             conexion.query(query, [name, description, price, stock], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error creating product:', err);
+                    return res.status(500).json({ error: 'Error creating product' });
                 }
-                res.json({ id: result.insertId });
+                
+                console.log('✅ Producto creado exitosamente:', result.insertId);
+                res.status(201).json({ 
+                    message: 'Producto creado exitosamente',
+                    productId: result.insertId 
+                });
             });
         });
     },
 
-    //funcion para actualizar un producto
+    // Actualizar un producto
     updateProduct(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let { name, description, price, stock, active } = req.body;
-            let query = "UPDATE products SET name = ?, description = ?, price = ?, stock = ?, active = ? WHERE id = ?";
+            const { id } = req.params;
+            const { name, description, price, stock, active } = req.body;
+            
+            const query = `
+                UPDATE products 
+                SET name = ?, description = ?, price = ?, stock = ?, active = ?
+                WHERE id = ?
+            `;
+            
             conexion.query(query, [name, description, price, stock, active, id], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error updating product:', err);
+                    return res.status(500).json({ error: 'Error updating product' });
                 }
-                res.sendStatus(200);
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Product not found' });
+                }
+                
+                console.log('✅ Producto actualizado exitosamente:', id);
+                res.json({ message: 'Producto actualizado exitosamente' });
             });
         });
     },
 
-    //funcion para eliminar un producto
+    // Eliminar un producto (cambiar a inactivo)
     deleteProduct(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let query = "DELETE FROM products WHERE id = ?";
+            const { id } = req.params;
+            
+            const query = 'UPDATE products SET active = false WHERE id = ?';
+            
             conexion.query(query, [id], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error deleting product:', err);
+                    return res.status(500).json({ error: 'Error deleting product' });
                 }
-                res.sendStatus(200);
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Product not found' });
+                }
+                
+                console.log('✅ Producto eliminado exitosamente:', id);
+                res.json({ message: 'Producto eliminado exitosamente' });
             });
         });
     },
 
-    //funcion para actualizar stock
+    // Actualizar stock de un producto
     updateStock(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let { stock } = req.body;
-            let query = "UPDATE products SET stock = ? WHERE id = ?";
+            const { id } = req.params;
+            const { stock } = req.body;
+            
+            if (stock === undefined || stock < 0) {
+                return res.status(400).json({ error: 'Stock debe ser un número positivo' });
+            }
+
+            const query = 'UPDATE products SET stock = ? WHERE id = ?';
+            
             conexion.query(query, [stock, id], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error updating stock:', err);
+                    return res.status(500).json({ error: 'Error updating stock' });
                 }
-                res.sendStatus(200);
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Product not found' });
+                }
+                
+                console.log('✅ Stock actualizado exitosamente:', id, 'Nuevo stock:', stock);
+                res.json({ message: 'Stock actualizado exitosamente' });
             });
         });
     },
 
-    //funcion para obtener productos por categoría
-    getProductsByCategory(req, res) {
+    // Cambiar estado activo/inactivo
+    toggleActive(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { category } = req.params;
-            let query = "SELECT * FROM products WHERE category = ? AND active = 1";
-            conexion.query(query, [category], (err, results) => {
+            const { id } = req.params;
+            
+            const query = 'UPDATE products SET active = NOT active WHERE id = ?';
+            
+            conexion.query(query, [id], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error toggling product status:', err);
+                    return res.status(500).json({ error: 'Error toggling product status' });
                 }
-                res.json(results);
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Product not found' });
+                }
+                
+                console.log('✅ Estado del producto cambiado exitosamente:', id);
+                res.json({ message: 'Estado del producto cambiado exitosamente' });
             });
         });
     }

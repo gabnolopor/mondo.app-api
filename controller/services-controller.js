@@ -1,39 +1,39 @@
 const { conexion, ensureConnection } = require("../database");
 
 const servicesController = {
-    //funcion para obtener todos los servicios
-    getServices(req, res) {
+    //funcion para obtener los servicios
+    getAllServices(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let query = "SELECT * FROM services";
+            const query = "SELECT * FROM services";
             conexion.query(query, (err, results) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error fetching services:", err);
+                    return res.status(500).json({ error: "Error fetching services" });
                 }
-                res.json(results);
+                res.json(results || []); // busca un array de servicios
             });
         });
     },
 
-    //funcion para crear un servicio
-    createService(req, res) {
+    //funcion para registrar un servicio
+    addService(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { name, type } = req.body;
-            let query = "INSERT INTO services (name, type) VALUES (?, ?)";
+            const { name, type } = req.body;
+            const query = "INSERT INTO services (name, type) VALUES (?, ?)";
             conexion.query(query, [name, type], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error adding service:", err);
+                    return res.status(500).json({ error: "Error adding service" });
                 }
-                res.json({ id: result.insertId });
+                res.status(201).json({ message: "Service added successfully", serviceId: result.insertId });
             });
         });
     },
@@ -45,14 +45,17 @@ const servicesController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let query = "DELETE FROM services WHERE id = ?";
+            const { id } = req.params;
+            const query = "DELETE FROM services WHERE service_id = ?";
             conexion.query(query, [id], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error deleting service:", err);
+                    return res.status(500).json({ error: "Error deleting service" });
                 }
-                res.sendStatus(200);
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: "Service not found" });
+                }
+                res.json({ message: "Service deleted successfully" });
             });
         });
     }

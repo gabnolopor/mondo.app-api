@@ -11,10 +11,11 @@ const clientsController = {
             let comandoClients = "SELECT * FROM clients";
             conexion.query(comandoClients, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al obtener los clientes:", err);
+                    res.status(500).json({ error: "Error al obtener los clientes" });
+                } else {
+                    res.status(200).json(resultados);
                 }
-                res.json(resultados).status(200);
             });
         });
     },
@@ -27,13 +28,17 @@ const clientsController = {
             }
             
             let { name, email, phone } = req.body;
-            let comandoRegister = "INSERT INTO clients (name, email, phone) VALUES (?, ?, ?)";
+            let comandoRegister = "INSERT INTO clients (name, email, phone, created_at) VALUES (?, ?, ?, NOW())";
             conexion.query(comandoRegister, [name, email, phone], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al registrar el cliente:", err);
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(409).json({ message: "Ya existe un cliente con este nombre." });
+                    }
+                    res.status(500).json({ message: "Error al registrar el cliente" });
+                } else {
+                    res.status(200).json({ message: "Cliente registrado correctamente", clientId: resultados.insertId });
                 }
-                res.sendStatus(200);
             });
         });
     },
@@ -45,15 +50,15 @@ const clientsController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { client_id } = req.params;
-            let { name, email, phone } = req.body;
-            let comandoUpdate = "UPDATE clients SET name = ?, email = ?, phone = ? WHERE client_id = ?";
+            const { client_id, name, email, phone } = req.body;
+            const comandoUpdate = "UPDATE clients SET name = ?, email = ?, phone = ? WHERE client_id = ?";
             conexion.query(comandoUpdate, [name, email, phone, client_id], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al actualizar el cliente:", err);
+                    res.status(500).json({ error: "Error al actualizar el cliente" });
+                } else {
+                    res.status(200).json({ message: "Cliente actualizado correctamente" });
                 }
-                res.sendStatus(200);
             });
         });
     },
@@ -65,75 +70,93 @@ const clientsController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { client_id } = req.params;
-            let comandoDelete = "DELETE FROM clients WHERE client_id = ?";
+            const { client_id } = req.params;
+            if (!client_id) {
+                return res.status(400).json({ error: "ID del cliente no proporcionado" });
+            }
+            const comandoDelete = "DELETE FROM clients WHERE client_id = ?";
             conexion.query(comandoDelete, [client_id], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al eliminar el cliente:", err);
+                    return res.status(500).json({ error: "Error al eliminar el cliente", details: err.message });
                 }
-                res.sendStatus(200);
+                if (resultados.affectedRows === 0) {
+                    return res.status(404).json({ error: "Cliente no encontrado" });
+                }
+                res.status(200).json({ message: "Cliente eliminado correctamente" });
             });
         });
     },
 
-    //funcion para obtener las visitas de un cliente
-    getClientVisits(req, res) {
+    //funcion para obtener el numero de visitas de un cliente
+    getClientVisitCount(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { clientId } = req.params;
-            let query = "SELECT v.*, s.name as service_name FROM visits v LEFT JOIN services s ON v.service_id = s.id WHERE v.client_id = ? ORDER BY v.visit_date DESC";
+            const { clientId } = req.params;
+            const query = `
+                SELECT COUNT(v.visit_id) as visit_count
+                FROM clients c
+                LEFT JOIN visits v ON c.client_id = v.client_id
+                WHERE c.client_id = ?
+                GROUP BY c.client_id
+            `;
             conexion.query(query, [clientId], (err, results) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error fetching client visit count:", err);
+                    return res.status(500).json({ error: "Error fetching client visit count" });
+                }
+                res.json(results[0] || { visit_count: 0 });
+            });
+        });
+    },
+
+    //funcion para obtener los servicios de un cliente
+    getClientServices(req, res) {
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            const { clientId } = req.params;
+            const query = `
+                SELECT s.name as service_name, s.type, COUNT(v.visit_id) as service_count
+                FROM clients c
+                JOIN visits v ON c.client_id = v.client_id
+                JOIN services s ON v.service_id = s.service_id
+                WHERE c.client_id = ?
+                GROUP BY c.client_id, s.service_id
+            `;
+            conexion.query(query, [clientId], (err, results) => {
+                if (err) {
+                    console.error("Error fetching client services:", err);
+                    return res.status(500).json({ error: "Error fetching client services" });
                 }
                 res.json(results);
             });
         });
     },
 
-    //funcion para obtener el perfil de un cliente
-    getClientProfile(req, res) {
-        ensureConnection((err) => {
-            if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
-            }
-            
-            let { clientId } = req.params;
-            let query = "SELECT * FROM clients WHERE client_id = ?";
-            conexion.query(query, [clientId], (err, results) => {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                if (results.length === 0) {
-                    res.status(404).json({ error: 'Client not found' });
-                    return;
-                }
-                res.json(results[0]);
-            });
-        });
-    },
-
-    //funcion para agregar una visita
+    //funcion para agregar una visita a un cliente
     addVisit(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { client_id, service_id, notes, visit_date } = req.body;
-            let query = "INSERT INTO visits (client_id, service_id, notes, visit_date) VALUES (?, ?, ?, ?)";
+            const { client_id, service_id, notes, visit_date } = req.body;
+            const query = `
+                INSERT INTO visits (client_id, service_id, notes, visit_date)
+                VALUES (?, ?, ?, ?)
+            `;
             conexion.query(query, [client_id, service_id, notes, visit_date], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error adding visit:", err);
+                    return res.status(500).json({ error: "Error adding visit" });
                 }
-                res.json({ id: result.insertId });
+                res.json({ message: "Visit added successfully", visit_id: result.insertId });
             });
         });
     },
@@ -145,40 +168,42 @@ const clientsController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { visitId } = req.params;
-            let query = "DELETE FROM visits WHERE visit_id = ?";
+            const { visitId } = req.params;
+            const query = "DELETE FROM visits WHERE visit_id = ?";
             conexion.query(query, [visitId], (err, result) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error deleting visit:", err);
+                    return res.status(500).json({ error: "Error deleting visit" });
                 }
-                res.sendStatus(200);
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: "Visit not found" });
+                }
+                res.json({ message: "Visit deleted successfully" });
             });
         });
     },
 
-    //funcion para obtener estadísticas de visitas
-    getVisitStatistics(req, res) {
+    //funcion para obtener las visitas de un cliente
+    getClientVisits(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { clientId } = req.params;
-            let query = `
-                SELECT 
-                    COUNT(*) as total_visits,
-                    COUNT(CASE WHEN visit_date >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as visits_last_30_days,
-                    COUNT(CASE WHEN visit_date >= DATE_SUB(NOW(), INTERVAL 90 DAY) THEN 1 END) as visits_last_90_days
-                FROM visits 
-                WHERE client_id = ?
+            const { clientId } = req.params;
+            const query = `
+                SELECT v.visit_id, v.visit_date, s.name as service_name, v.notes
+                FROM visits v
+                JOIN services s ON v.service_id = s.service_id
+                WHERE v.client_id = ?
+                ORDER BY v.visit_date DESC
             `;
             conexion.query(query, [clientId], (err, results) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error fetching client visits:", err);
+                    return res.status(500).json({ error: "Error fetching client visits" });
                 }
-                res.json(results[0]);
+                res.json(results);
             });
         });
     }
