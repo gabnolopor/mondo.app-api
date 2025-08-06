@@ -11,10 +11,11 @@ const citasController = {
             let comandoCitas = "SELECT * FROM citas";
             conexion.query(comandoCitas, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al obtener las citas:", err);
+                    res.status(500).json({ error: "Error al obtener las citas" });
+                } else {
+                    res.status(200).json(resultados);
                 }
-                res.json(resultados).status(200);
             });
         });
     },
@@ -26,14 +27,15 @@ const citasController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let comandoEliminar = "DELETE FROM citas WHERE id = ?";
-            conexion.query(comandoEliminar, [id], (err, resultados) => {
+            let telefono = req.params.telefono;
+            let comandoEliminar = "DELETE FROM citas WHERE telefono = ?";
+            conexion.query(comandoEliminar, [telefono], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al eliminar la cita:", err);
+                    res.status(500).json({ error: "Error al eliminar la cita" });
+                } else {
+                    res.status(200).json({ message: "Cita eliminada correctamente" });
                 }
-                res.sendStatus(200);
             });
         });
     },
@@ -46,13 +48,14 @@ const citasController = {
             }
             
             let { nombre, correo, telefono, ritual, mensaje } = req.body;
-            let comandoCreate = "INSERT INTO citas (nombre, correo, telefono, ritual, mensaje) VALUES (?, ?, ?, ?, ?)";
+            let comandoCreate = "INSERT INTO citas (nombre, correo, telefono, ritual, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
             conexion.query(comandoCreate, [nombre, correo, telefono, ritual, mensaje], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error("Error al crear la cita:", err);
+                    res.status(500).json({ error: "Error al crear la cita" });
+                } else {
+                    res.status(200).json({ message: "Cita creada correctamente" });
                 }
-                res.sendStatus(200);
             });
         });
     }

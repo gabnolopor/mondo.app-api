@@ -27,9 +27,9 @@ const citasfController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let { id } = req.params;
-            let comandoEliminar = "DELETE FROM citasf WHERE id = ?";
-            conexion.query(comandoEliminar, [id], (err, resultados) => {
+            let telefono = req.params.telefono;
+            let comandoEliminar = "DELETE FROM citasf WHERE telefono = ?";
+            conexion.query(comandoEliminar, [telefono], (err, resultados) => {
                 if (err) {
                     console.error("Error al eliminar la cita facial:", err);
                     res.status(500).json({ error: "Error al eliminar la cita facial" });
