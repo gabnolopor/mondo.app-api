@@ -1,216 +1,167 @@
-const conexion = require("../database");
-
-const { v4: uuidv4 } = require('uuid');
+const { conexion, ensureConnection } = require("../database");
 
 const qrController = {
-    // Función para generar un nuevo vale QR
-    generateVoucher(req, res) {
-        const { serviceName, expiresAt, notes, createdBy } = req.body;
-
-        const voucherCode = uuidv4();
-        const expirationDate = expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 días por defecto
-
-        const query = `
-            INSERT INTO qr_vouchers (voucher_code, service_name, expires_at, notes, created_by) 
-            VALUES (?, ?, ?, ?, ?)
-        `;
-
-        conexion.query(query, [voucherCode, serviceName || null, expirationDate, notes, createdBy], (err, result) => {
+    //funcion para crear un voucher QR
+    createVoucher(req, res) {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al generar el vale QR:", err);
-                return res.status(500).json({ error: "Error al generar el vale QR" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            res.status(201).json({
-                message: "Vale QR generado correctamente",
-                voucher: {
-                    voucher_id: result.insertId,
-                    voucher_code: voucherCode,
-                    service_name: serviceName || null,
-                    status: 'active',
-                    expires_at: expirationDate,
-                    notes: notes
+            
+            let { voucherCode, serviceName, expirationDate, notes, createdBy } = req.body;
+            let query = "INSERT INTO qr_vouchers (voucher_code, service_name, expires_at, notes, created_by, status) VALUES (?, ?, ?, ?, ?, 'active')";
+            conexion.query(query, [voucherCode, serviceName || null, expirationDate, notes, createdBy], (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
                 }
+                res.json({ id: result.insertId, voucher_code: voucherCode });
             });
         });
     },
 
-    // Función para obtener todos los vales
-    getVouchers(req, res) {
-        const query = `
-            SELECT voucher_id, voucher_code, service_name, status, created_at, used_at, expires_at, notes, created_by
-            FROM qr_vouchers 
-            ORDER BY created_at DESC
-        `;
-
-        conexion.query(query, (err, results) => {
+    //funcion para obtener todos los vouchers
+    getAllVouchers(req, res) {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al obtener los vales:", err);
-                return res.status(500).json({ error: "Error al obtener los vales" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            res.status(200).json(results);
+            
+            let query = "SELECT * FROM qr_vouchers ORDER BY created_at DESC";
+            conexion.query(query, (err, results) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.json(results);
+            });
         });
     },
 
-    // Función para obtener un vale por código
+    //funcion para obtener un voucher por código
     getVoucherByCode(req, res) {
-        const { voucherCode } = req.params;
-
-        const query = `
-            SELECT voucher_id, voucher_code, service_name, status, created_at, used_at, expires_at, notes, created_by
-            FROM qr_vouchers 
-            WHERE voucher_code = ?
-        `;
-
-        conexion.query(query, [voucherCode], (err, results) => {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al obtener el vale:", err);
-                return res.status(500).json({ error: "Error al obtener el vale" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            if (results.length === 0) {
-                return res.status(404).json({ error: "Vale no encontrado" });
-            }
-
-            res.status(200).json(results[0]);
+            
+            let { voucherCode } = req.params;
+            let query = "SELECT * FROM qr_vouchers WHERE voucher_code = ?";
+            conexion.query(query, [voucherCode], (err, results) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                if (results.length === 0) {
+                    res.status(404).json({ error: 'Voucher not found' });
+                    return;
+                }
+                res.json(results[0]);
+            });
         });
     },
 
-    // Función para redimir un vale
-    redeemVoucher(req, res) {
-        const { voucherCode } = req.body;
-
-        if (!voucherCode) {
-            return res.status(400).json({ error: "Código del vale es requerido" });
-        }
-
-        // Primero verificar si el vale existe y su estado
-        const checkQuery = `
-            SELECT voucher_id, service_name, status, expires_at
-            FROM qr_vouchers 
-            WHERE voucher_code = ?
-        `;
-
-        conexion.query(checkQuery, [voucherCode], (err, results) => {
+    //funcion para validar un voucher
+    validateVoucher(req, res) {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al verificar el vale:", err);
-                return res.status(500).json({ error: "Error al verificar el vale" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            if (results.length === 0) {
-                return res.status(404).json({ error: "Vale no encontrado" });
-            }
-
-            const voucher = results[0];
-
-            // Verificar si ya fue usado
-            if (voucher.status === 'used') {
-                return res.status(400).json({ error: "Este vale ya ha sido utilizado" });
-            }
-
-            // Verificar si ha expirado
-            if (voucher.status === 'expired' || (voucher.expires_at && new Date() > new Date(voucher.expires_at))) {
-                // Actualizar estado a expirado si no lo está
-                if (voucher.status !== 'expired') {
-                    const updateExpiredQuery = "UPDATE qr_vouchers SET status = 'expired' WHERE voucher_id = ?";
+            
+            let { voucherCode } = req.params;
+            let checkQuery = "SELECT * FROM qr_vouchers WHERE voucher_code = ? AND status = 'active'";
+            conexion.query(checkQuery, [voucherCode], (err, results) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                if (results.length === 0) {
+                    res.status(404).json({ error: 'Voucher not found or already used' });
+                    return;
+                }
+                
+                let voucher = results[0];
+                let now = new Date();
+                let expirationDate = new Date(voucher.expires_at);
+                
+                if (now > expirationDate) {
+                    // Marcar como expirado
+                    let updateExpiredQuery = "UPDATE qr_vouchers SET status = 'expired' WHERE voucher_id = ?";
                     conexion.query(updateExpiredQuery, [voucher.voucher_id]);
+                    res.status(400).json({ error: 'Voucher has expired' });
+                    return;
                 }
-                return res.status(400).json({ error: "Este vale ha expirado" });
-            }
-
-            // Marcar como usado
-            const redeemQuery = `
-                UPDATE qr_vouchers 
-                SET status = 'used', used_at = NOW() 
-                WHERE voucher_id = ?
-            `;
-
-            conexion.query(redeemQuery, [voucher.voucher_id], (updateErr, updateResult) => {
-                if (updateErr) {
-                    console.error("Error al redimir el vale:", updateErr);
-                    return res.status(500).json({ error: "Error al redimir el vale" });
-                }
-
-                res.status(200).json({
-                    message: "Vale redimido correctamente",
-                    service_name: voucher.service_name,
-                    voucher_id: voucher.voucher_id
+                
+                // Marcar como usado
+                let redeemQuery = "UPDATE qr_vouchers SET status = 'used', used_at = NOW() WHERE voucher_id = ?";
+                conexion.query(redeemQuery, [voucher.voucher_id], (updateErr, updateResult) => {
+                    if (updateErr) {
+                        res.status(500).json({ error: updateErr.message });
+                        return;
+                    }
+                    res.json({ 
+                        message: 'Voucher validated successfully',
+                        voucher: voucher
+                    });
                 });
             });
         });
     },
 
-    // Función para actualizar un vale
+    //funcion para actualizar un voucher
     updateVoucher(req, res) {
-        const { voucher_id, service_name, expires_at, notes, status } = req.body;
-
-        if (!voucher_id) {
-            return res.status(400).json({ error: "ID del vale es requerido" });
-        }
-
-        const query = `
-            UPDATE qr_vouchers 
-            SET service_name = ?, expires_at = ?, notes = ?, status = ?
-            WHERE voucher_id = ?
-        `;
-
-        conexion.query(query, [service_name, expires_at, notes, status, voucher_id], (err, result) => {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al actualizar el vale:", err);
-                return res.status(500).json({ error: "Error al actualizar el vale" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ error: "Vale no encontrado" });
-            }
-
-            res.status(200).json({ message: "Vale actualizado correctamente" });
+            
+            let { voucherId } = req.params;
+            let { service_name, expires_at, notes, status } = req.body;
+            let query = "UPDATE qr_vouchers SET service_name = ?, expires_at = ?, notes = ?, status = ? WHERE voucher_id = ?";
+            conexion.query(query, [service_name, expires_at, notes, status, voucherId], (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.sendStatus(200);
+            });
         });
     },
 
-    // Función para eliminar un vale
+    //funcion para eliminar un voucher
     deleteVoucher(req, res) {
-        const { voucherId } = req.params;
-
-        if (!voucherId) {
-            return res.status(400).json({ error: "ID del vale es requerido" });
-        }
-
-        const query = "DELETE FROM qr_vouchers WHERE voucher_id = ?";
-
-        conexion.query(query, [voucherId], (err, result) => {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al eliminar el vale:", err);
-                return res.status(500).json({ error: "Error al eliminar el vale" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ error: "Vale no encontrado" });
-            }
-
-            res.status(200).json({ message: "Vale eliminado correctamente" });
+            
+            let { voucherId } = req.params;
+            let query = "DELETE FROM qr_vouchers WHERE voucher_id = ?";
+            conexion.query(query, [voucherId], (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.sendStatus(200);
+            });
         });
     },
 
-    // Función para obtener estadísticas de vales
+    //funcion para obtener estadísticas de vouchers
     getVoucherStats(req, res) {
-        const query = `
-            SELECT 
-                COUNT(*) as total_vouchers,
-                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_vouchers,
-                COUNT(CASE WHEN status = 'used' THEN 1 END) as used_vouchers,
-                COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_vouchers
-            FROM qr_vouchers
-        `;
-
-        conexion.query(query, (err, results) => {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al obtener estadísticas:", err);
-                return res.status(500).json({ error: "Error al obtener estadísticas" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            res.status(200).json(results[0]);
+            
+            let query = "SELECT status, COUNT(*) as count FROM qr_vouchers GROUP BY status";
+            conexion.query(query, (err, results) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.json(results);
+            });
         });
     }
 };

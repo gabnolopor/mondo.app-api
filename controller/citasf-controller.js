@@ -1,42 +1,59 @@
-const conexion = require("../database");
+const { conexion, ensureConnection } = require("../database");
 
 const citasfController = {
-    //function to get facial appointments
-    getCitasF(req, res) {
-        let comandoCitas = "SELECT * FROM citasf";
-        conexion.query(comandoCitas, (err, resultados, campos) => {
+    //funcion para obtener las citas
+    getCitas(req, res) {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al obtener las citas faciales:", err);
-                res.status(500).json({ error: "Error al obtener las citas faciales" });
-            } else {
-                res.status(200).json(resultados);
+                return res.status(500).json({ error: 'Database connection failed' });
             }
+            
+            let comandoCitas = "SELECT * FROM citasf";
+            conexion.query(comandoCitas, (err, resultados, campos) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.json(resultados).status(200);
+            });
         });
     },
-    //function to delete a facial appointment
-    deleteCitaF(req, res) {
-        let id = req.params.telefono;
-        let comandoEliminar = "DELETE FROM citasf WHERE telefono = ?";
-        conexion.query(comandoEliminar, [id], (err, resultados) => {
+
+    //funcion para eliminar una cita
+    deleteCita(req, res) {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al eliminar la cita facial:", err);
-                res.status(500).json({ error: "Error al eliminar la cita facial" });
-            } else {
-                res.status(200).json({ message: "Cita facial eliminada correctamente" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
+            
+            let { id } = req.params;
+            let comandoEliminar = "DELETE FROM citasf WHERE id = ?";
+            conexion.query(comandoEliminar, [id], (err, resultados) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.sendStatus(200);
+            });
         });
     },
-    //function to create a facial appointment
-    createCitaF(req, res) {
-        let { nombre, correo, telefono, facial, mensaje } = req.body;
-        let comandoCreate = "INSERT INTO citasf (nombre, correo, telefono, facial, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
-        conexion.query(comandoCreate, [nombre, correo, telefono, facial, mensaje], (err, resultados) => {
+
+    //funcion para crear una cita
+    createCita(req, res) {
+        ensureConnection((err) => {
             if (err) {
-                console.error("Error al crear la cita facial:", err);
-                res.status(500).json({ error: "Error al crear la cita facial" });
-            } else {
-                res.status(200).json({ message: "Cita facial creada correctamente" });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
+            
+            let { nombre, correo, telefono, facial, mensaje } = req.body;
+            let comandoCreate = "INSERT INTO citasf (nombre, correo, telefono, facial, mensaje) VALUES (?, ?, ?, ?, ?)";
+            conexion.query(comandoCreate, [nombre, correo, telefono, facial, mensaje], (err, resultados) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                res.sendStatus(200);
+            });
         });
     }
 };
