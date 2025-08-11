@@ -1,4 +1,4 @@
-const conexion = require('../database');
+const { conexion, ensureConnection } = require('../database');
 const { v4: uuidv4 } = require('uuid');
 const { sendBookingConfirmation } = require('./email-controller');
 
@@ -70,47 +70,53 @@ const paymentsController = {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')
             `;
 
-            conexion.query(query, [
-                customerName,
-                customerEmail,
-                customerPhone,
-                serviceType,
-                serviceId,
-                serviceVariant,
-                appointmentDate,
-                totalAmount,
-                'pi_test_' + uuidv4().substring(0, 24),
-                qrCode
-            ], async (err, result) => {
+            ensureConnection((err) => {
                 if (err) {
-                    console.error('Error saving test booking:', err);
-                    return res.status(500).json({ error: 'Error saving test booking' });
+                    return res.status(500).json({ error: 'Database connection failed' });
                 }
+                
+                conexion.query(query, [
+                    customerName,
+                    customerEmail,
+                    customerPhone,
+                    serviceType,
+                    serviceId,
+                    serviceVariant,
+                    appointmentDate,
+                    totalAmount,
+                    'pi_test_' + uuidv4().substring(0, 24),
+                    qrCode
+                ], async (err, result) => {
+                    if (err) {
+                        console.error('Error saving test booking:', err);
+                        return res.status(500).json({ error: 'Error saving test booking' });
+                    }
 
-                console.log('✅ Reserva de prueba guardada exitosamente');
+                    console.log('✅ Reserva de prueba guardada exitosamente');
 
-                // Enviar email de confirmación
-                try {
-                    const bookingData = {
-                        customerName,
-                        customerEmail,
-                        serviceName,
-                        serviceVariant,
-                        appointmentDate,
-                        totalAmount
-                    };
+                    // Enviar email de confirmación
+                    try {
+                        const bookingData = {
+                            customerName,
+                            customerEmail,
+                            serviceName,
+                            serviceVariant,
+                            appointmentDate,
+                            totalAmount
+                        };
 
-                    await sendBookingConfirmation(bookingData, qrCode);
-                    console.log('✅ Email de confirmación enviado (modo prueba)');
-                } catch (emailError) {
-                    console.error('❌ Error enviando email (modo prueba):', emailError);
-                }
+                        await sendBookingConfirmation(bookingData, qrCode);
+                        console.log('✅ Email de confirmación enviado (modo prueba)');
+                    } catch (emailError) {
+                        console.error('❌ Error enviando email (modo prueba):', emailError);
+                    }
 
-                res.json({
-                    sessionId: 'cs_test_' + uuidv4().substring(0, 24),
-                    testMode: true,
-                    qrCode: qrCode,
-                    message: 'Reserva creada en modo prueba (Stripe no configurado o inválido)'
+                    res.json({
+                        sessionId: 'cs_test_' + uuidv4().substring(0, 24),
+                        testMode: true,
+                        qrCode: qrCode,
+                        message: 'Reserva creada en modo prueba (Stripe no configurado o inválido)'
+                    });
                 });
             });
             return;
@@ -174,47 +180,53 @@ const paymentsController = {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')
                 `;
 
-                conexion.query(query, [
-                    customerName,
-                    customerEmail,
-                    customerPhone,
-                    serviceType,
-                    serviceId,
-                    serviceVariant,
-                    appointmentDate,
-                    totalAmount,
-                    'pi_test_' + uuidv4().substring(0, 24),
-                    qrCode
-                ], async (err, result) => {
+                ensureConnection((err) => {
                     if (err) {
-                        console.error('Error saving test booking:', err);
-                        return res.status(500).json({ error: 'Error saving test booking' });
+                        return res.status(500).json({ error: 'Database connection failed' });
                     }
+                    
+                    conexion.query(query, [
+                        customerName,
+                        customerEmail,
+                        customerPhone,
+                        serviceType,
+                        serviceId,
+                        serviceVariant,
+                        appointmentDate,
+                        totalAmount,
+                        'pi_test_' + uuidv4().substring(0, 24),
+                        qrCode
+                    ], async (err, result) => {
+                        if (err) {
+                            console.error('Error saving test booking:', err);
+                            return res.status(500).json({ error: 'Error saving test booking' });
+                        }
 
-                    console.log('✅ Reserva de prueba guardada exitosamente (fallback)');
+                        console.log('✅ Reserva de prueba guardada exitosamente (fallback)');
 
-                    // Enviar email de confirmación
-                    try {
-                        const bookingData = {
-                            customerName,
-                            customerEmail,
-                            serviceName,
-                            serviceVariant,
-                            appointmentDate,
-                            totalAmount
-                        };
+                        // Enviar email de confirmación
+                        try {
+                            const bookingData = {
+                                customerName,
+                                customerEmail,
+                                serviceName,
+                                serviceVariant,
+                                appointmentDate,
+                                totalAmount
+                            };
 
-                        await sendBookingConfirmation(bookingData, qrCode);
-                        console.log('✅ Email de confirmación enviado (fallback)');
-                    } catch (emailError) {
-                        console.error('❌ Error enviando email (fallback):', emailError);
-                    }
+                            await sendBookingConfirmation(bookingData, qrCode);
+                            console.log('✅ Email de confirmación enviado (fallback)');
+                        } catch (emailError) {
+                            console.error('❌ Error enviando email (fallback):', emailError);
+                        }
 
-                    res.json({
-                        sessionId: 'cs_test_' + uuidv4().substring(0, 24),
-                        testMode: true,
-                        qrCode: qrCode,
-                        message: 'Reserva creada en modo prueba (fallback por error de Stripe)'
+                        res.json({
+                            sessionId: 'cs_test_' + uuidv4().substring(0, 24),
+                            testMode: true,
+                            qrCode: qrCode,
+                            message: 'Reserva creada en modo prueba (fallback por error de Stripe)'
+                        });
                     });
                 });
                 return;
@@ -284,37 +296,43 @@ const paymentsController = {
 
             console.log('🔧 Guardando reserva con parámetros:', queryParams);
 
-            conexion.query(query, queryParams, async (err, result) => {
+            ensureConnection((err) => {
                 if (err) {
-                    console.error('❌ Error saving paid booking:', err);
-                    return res.status(500).json({ error: 'Error saving booking' });
+                    return res.status(500).json({ error: 'Database connection failed' });
                 }
-
-                console.log('✅ Reserva pagada guardada exitosamente en DB');
-
-                // Enviar email de confirmación
-                try {
-                    const bookingData = {
-                        customerName: metadata.customerName,
-                        customerEmail: metadata.customerEmail,
-                        serviceName: metadata.serviceName,
-                        serviceVariant: metadata.serviceVariant,
-                        appointmentDate: metadata.appointmentDate,
-                        totalAmount: metadata.totalAmount
-                    };
-
-                    console.log('📧 Enviando email con datos:', bookingData);
-                    
-                    const emailResult = await sendBookingConfirmation(bookingData, qrCode);
-                    
-                    if (emailResult.success) {
-                        console.log('✅ Email de confirmación enviado exitosamente');
-                    } else {
-                        console.error('❌ Error enviando email:', emailResult.error);
+                
+                conexion.query(query, queryParams, async (err, result) => {
+                    if (err) {
+                        console.error('❌ Error saving paid booking:', err);
+                        return res.status(500).json({ error: 'Error saving booking' });
                     }
-                } catch (emailError) {
-                    console.error('❌ Error enviando email:', emailError);
-                }
+
+                    console.log('✅ Reserva pagada guardada exitosamente en DB');
+
+                    // Enviar email de confirmación
+                    try {
+                        const bookingData = {
+                            customerName: metadata.customerName,
+                            customerEmail: metadata.customerEmail,
+                            serviceName: metadata.serviceName,
+                            serviceVariant: metadata.serviceVariant,
+                            appointmentDate: metadata.appointmentDate,
+                            totalAmount: metadata.totalAmount
+                        };
+
+                        console.log('📧 Enviando email con datos:', bookingData);
+                        
+                        const emailResult = await sendBookingConfirmation(bookingData, qrCode);
+                        
+                        if (emailResult.success) {
+                            console.log('✅ Email de confirmación enviado exitosamente');
+                        } else {
+                            console.error('❌ Error enviando email:', emailResult.error);
+                        }
+                    } catch (emailError) {
+                        console.error('❌ Error enviando email:', emailError);
+                    }
+                });
             });
         } else {
             console.log('🔧 Webhook ignorado (tipo no manejado):', event.type);
@@ -339,12 +357,18 @@ const paymentsController = {
             ORDER BY pb.created_at DESC
         `;
 
-        conexion.query(query, (err, results) => {
+        ensureConnection((err) => {
             if (err) {
-                console.error('Error fetching paid bookings:', err);
-                return res.status(500).json({ error: 'Error fetching bookings' });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-            res.json(results);
+            
+            conexion.query(query, (err, results) => {
+                if (err) {
+                    console.error('Error fetching paid bookings:', err);
+                    return res.status(500).json({ error: 'Error fetching bookings' });
+                }
+                res.json(results);
+            });
         });
     },
 
@@ -368,31 +392,37 @@ const paymentsController = {
             WHERE pb.qr_code = ? AND pb.status = 'paid'
         `;
 
-        conexion.query(query, [qrCode], (err, results) => {
+        ensureConnection((err) => {
             if (err) {
-                console.error('Error validating QR:', err);
-                return res.status(500).json({ error: 'Error validating QR' });
+                return res.status(500).json({ error: 'Database connection failed' });
             }
-
-            if (results.length === 0) {
-                console.log('❌ QR no válido:', qrCode);
-                return res.status(404).json({ error: 'QR no válido o ya utilizado' });
-            }
-
-            console.log('✅ QR válido:', qrCode);
-
-            // Marcar como completado
-            const updateQuery = 'UPDATE paid_bookings SET status = "completed" WHERE qr_code = ?';
-            conexion.query(updateQuery, [qrCode], (updateErr) => {
-                if (updateErr) {
-                    console.error('Error updating booking status:', updateErr);
+            
+            conexion.query(query, [qrCode], (err, results) => {
+                if (err) {
+                    console.error('Error validating QR:', err);
+                    return res.status(500).json({ error: 'Error validating QR' });
                 }
-            });
 
-            res.json({
-                valid: true,
-                booking: results[0],
-                message: 'QR válido - Reserva completada'
+                if (results.length === 0) {
+                    console.log('❌ QR no válido:', qrCode);
+                    return res.status(404).json({ error: 'QR no válido o ya utilizado' });
+                }
+
+                console.log('✅ QR válido:', qrCode);
+
+                // Marcar como completado
+                const updateQuery = 'UPDATE paid_bookings SET status = "completed" WHERE qr_code = ?';
+                conexion.query(updateQuery, [qrCode], (updateErr) => {
+                    if (updateErr) {
+                        console.error('Error updating booking status:', updateErr);
+                    }
+                });
+
+                res.json({
+                    valid: true,
+                    booking: results[0],
+                    message: 'QR válido - Reserva completada'
+                });
             });
         });
     }
