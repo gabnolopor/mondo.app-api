@@ -1,6 +1,6 @@
 const { conexion, ensureConnection } = require('../database');
 const { v4: uuidv4 } = require('uuid');
-const { sendBookingConfirmation } = require('./email-controller');
+const { sendBookingConfirmation, sendProductOrderConfirmation } = require('./email-controller');
 
 // Verificar si Stripe está configurado
 let stripe;
@@ -99,6 +99,7 @@ const paymentsController = {
                         const bookingData = {
                             customerName,
                             customerEmail,
+                            customerPhone,
                             serviceName,
                             serviceVariant,
                             appointmentDate,
@@ -209,6 +210,7 @@ const paymentsController = {
                             const bookingData = {
                                 customerName,
                                 customerEmail,
+                                customerPhone,
                                 serviceName,
                                 serviceVariant,
                                 appointmentDate,
@@ -235,6 +237,241 @@ const paymentsController = {
             res.status(500).json({ error: 'Error creating payment session: ' + error.message });
         }
     },
+ 
+
+// Función para crear pedido de productos
+async createProductOrder(req, res) {
+    const {
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerAddress,
+        subtotal,
+        ivaAmount,
+        totalAmount,
+        orderItems
+    } = req.body;
+
+    console.log('🔧 Creando pedido de productos:', {
+        customerName,
+        subtotal,
+        ivaAmount,
+        totalAmount,
+        itemsCount: orderItems.length,
+        stripeConfigured
+    });
+
+    // Si Stripe no está configurado, crear pedido de prueba
+    if (!stripe || !stripeConfigured) {
+        console.log('🔧 Creando pedido de prueba (Stripe no configurado)');
+
+        const qrCode = uuidv4();
+
+        const query = `
+        INSERT INTO product_orders
+        (customer_name, customer_email, customer_phone, customer_address, 
+         subtotal, iva_amount, total_amount, stripe_payment_id, qr_code, status, order_items)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)
+    `;
+
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            conexion.query(query, [
+                customerName,
+                customerEmail,
+                customerPhone,
+                customerAddress,
+                subtotal,
+                ivaAmount,
+                totalAmount,
+                'pi_test_' + uuidv4().substring(0, 24),
+                qrCode,
+                JSON.stringify(orderItems)
+            ], async (err, result) => {
+                if (err) {
+                    console.error('Error saving test order:', err);
+                    return res.status(500).json({ error: 'Error saving order' });
+                }
+
+                console.log('✅ Pedido de prueba guardado exitosamente');
+
+                // Enviar email de confirmación
+                try {
+                    const orderData = {
+                        customerName,
+                        customerEmail,
+                        orderItems,
+                        totalAmount,
+                        qrCode
+                    };
+
+                    await sendBookingConfirmation(orderData, qrCode); // Assuming sendBookingConfirmation can handle product orders
+                    console.log('✅ Email de confirmación enviado (modo prueba)');
+                } catch (emailError) {
+                    console.error('❌ Error enviando email (modo prueba):', emailError);
+                }
+
+                res.json({
+                    sessionId: 'cs_test_' + uuidv4().substring(0, 24),
+                    testMode: true,
+                    qrCode: qrCode,
+                    message: 'Pedido creado en modo prueba'
+                });
+            });
+        });
+        return;
+    }
+
+    try {
+        console.log('🔧 Creando sesión de Stripe para productos');
+
+        // Crear sesión de pago con Stripe
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                // Productos
+                ...orderItems.map(item => ({
+                    price_data: {
+                        currency: 'eur',
+                        product_data: {
+                            name: item.name,
+                            description: `Cantidad: ${item.quantity}`,
+                        },
+                        unit_amount: Math.round(item.price * 100), // Stripe usa centavos
+                    },
+                    quantity: item.quantity,
+                })),
+                // IVA como línea separada
+                {
+                    price_data: {
+                        currency: 'eur',
+                        product_data: {
+                            name: 'IVA (21%)',
+                            description: 'Impuesto sobre el Valor Añadido',
+                        },
+                        unit_amount: Math.round(ivaAmount * 100),
+                    },
+                    quantity: 1,
+                }
+            ],
+            mode: 'payment',
+            success_url: `${process.env.CLIENT_URL}/?payment=success`,
+            cancel_url: `${process.env.CLIENT_URL}/?payment=cancelled`,
+            metadata: {
+                customerName,
+                customerEmail,
+                customerPhone,
+                customerAddress,
+                subtotal: subtotal.toString(),
+                ivaAmount: ivaAmount.toString(),
+                totalAmount: totalAmount.toString(),
+                orderType: 'product',
+                orderItems: JSON.stringify(orderItems)
+            }
+        });
+
+        console.log('✅ Sesión de Stripe creada para productos:', session.id);
+
+        if (!session.id) {
+            throw new Error('No se pudo crear la sesión de Stripe');
+        }
+
+        res.json({ sessionId: session.id });
+    } catch (error) {
+        console.error('Error creating product order session:', error);
+        res.status(500).json({ error: 'Error creating order session: ' + error.message });
+    }
+},
+
+    // Función para obtener pedidos de productos
+    getProductOrders(req, res) {
+        const query = `
+            SELECT * FROM product_orders
+            ORDER BY created_at DESC
+        `;
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            conexion.query(query, (err, results) => {
+                if (err) {
+                    console.error('Error fetching product orders:', err);
+                    return res.status(500).json({ error: 'Error fetching product orders' });
+                }
+                res.json(results);
+            });
+        });
+    },
+    updateProductOrderStatus(req, res) {
+        const { id } = req.params;
+        const { status } = req.body;
+    
+        const validStatuses = ['paid', 'shipped', 'delivered', 'cancelled'];
+        
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ error: 'Estado no válido' });
+        }
+    
+        const query = 'UPDATE product_orders SET status = ?, updated_at = NOW() WHERE id = ?';
+        
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            conexion.query(query, [status, id], (err, result) => {
+                if (err) {
+                    console.error('Error updating order status:', err);
+                    return res.status(500).json({ error: 'Error updating order status' });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Order not found' });
+                }
+                
+                console.log('✅ Estado del pedido actualizado exitosamente:', id, 'Nuevo estado:', status);
+                res.json({ message: 'Estado del pedido actualizado exitosamente' });
+            });
+        });
+    },
+    // Función para rastrear pedido por código QR
+trackOrder(req, res) {
+    const { trackingCode } = req.params;
+
+    console.log('🔍 Rastreando pedido con código:', trackingCode);
+
+    const query = `
+        SELECT * FROM product_orders 
+        WHERE qr_code = ?
+    `;
+
+    ensureConnection((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database connection failed' });
+        }
+        
+        conexion.query(query, [trackingCode], (err, results) => {
+            if (err) {
+                console.error('Error tracking order:', err);
+                return res.status(500).json({ error: 'Error tracking order' });
+            }
+
+            if (results.length === 0) {
+                console.log('❌ Pedido no encontrado:', trackingCode);
+                return res.status(404).json({ error: 'Order not found' });
+            }
+
+            console.log('✅ Pedido encontrado:', results[0].id);
+            res.json(results[0]);
+        });
+    });
+},
+
+
+
 
     // Función para manejar webhook de Stripe
     handleWebhook(req, res) {
@@ -269,71 +506,139 @@ const paymentsController = {
             console.log('✅ Pago completado:', session.id);
             console.log('🔧 Metadata del pago:', metadata);
 
-            // Generar QR único
-            const qrCode = uuidv4();
-            console.log('🔧 QR generado:', qrCode);
+            // Verificar si es un pedido de productos
+            if (metadata.orderType === 'product') {
+                const qrCode = uuidv4();
+                console.log('🔧 QR generado para producto:', qrCode);
 
-            // Guardar reserva pagada en la base de datos
-            const query = `
-                INSERT INTO paid_bookings
-                (customer_name, customer_email, customer_phone, service_type, service_id,
-                 service_variant, appointment_date, total_amount, stripe_payment_id, qr_code, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')
-            `;
+                const query = `
+                    INSERT INTO product_orders
+                    (customer_name, customer_email, customer_phone, customer_address,
+                     total_amount, stripe_payment_id, qr_code, status, order_items)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', ?)
+                `;
 
-            const queryParams = [
-                metadata.customerName,
-                metadata.customerEmail,
-                metadata.customerPhone,
-                metadata.serviceType,
-                metadata.serviceId,
-                metadata.serviceVariant,
-                metadata.appointmentDate,
-                metadata.totalAmount,
-                session.payment_intent,
-                qrCode
-            ];
+                const queryParams = [
+                    metadata.customerName,
+                    metadata.customerEmail,
+                    metadata.customerPhone,
+                    metadata.customerAddress,
+                    parseFloat(metadata.totalAmount),
+                    session.payment_intent,
+                    qrCode,
+                    metadata.orderItems
+                ];
 
-            console.log('🔧 Guardando reserva con parámetros:', queryParams);
+                console.log('🔧 Guardando pedido de productos con parámetros:', queryParams);
 
-            ensureConnection((err) => {
-                if (err) {
-                    return res.status(500).json({ error: 'Database connection failed' });
-                }
-                
-                conexion.query(query, queryParams, async (err, result) => {
+                ensureConnection((err) => {
                     if (err) {
-                        console.error('❌ Error saving paid booking:', err);
-                        return res.status(500).json({ error: 'Error saving booking' });
+                        return res.status(500).json({ error: 'Database connection failed' });
                     }
-
-                    console.log('✅ Reserva pagada guardada exitosamente en DB');
-
-                    // Enviar email de confirmación
-                    try {
-                        const bookingData = {
-                            customerName: metadata.customerName,
-                            customerEmail: metadata.customerEmail,
-                            serviceName: metadata.serviceName,
-                            serviceVariant: metadata.serviceVariant,
-                            appointmentDate: metadata.appointmentDate,
-                            totalAmount: metadata.totalAmount
-                        };
-
-                        console.log('📧 Enviando email con datos:', bookingData);
-                        
-                        const emailResult = await sendBookingConfirmation(bookingData, qrCode);
-                        
-                        if (emailResult.success) {
-                            console.log('✅ Email de confirmación enviado exitosamente');
-                        } else {
-                            console.error('❌ Error enviando email:', emailResult.error);
+                    
+                    conexion.query(query, queryParams, async (err, result) => {
+                        if (err) {
+                            console.error('❌ Error saving product order:', err);
+                            return res.status(500).json({ error: 'Error saving order' });
                         }
-                    } catch (emailError) {
-                        console.error('❌ Error enviando email:', emailError);
-                    }
+
+                        console.log('✅ Pedido de productos guardado exitosamente en DB');
+
+                        // Enviar email de confirmación para productos
+                        try {
+                            const orderData = {
+                                customerName: metadata.customerName,
+                                customerEmail: metadata.customerEmail,
+                                orderItems: JSON.parse(metadata.orderItems),
+                                totalAmount: metadata.totalAmount,
+                                qrCode: qrCode
+                            };
+
+                            console.log('📧 Enviando email de confirmación para productos:', orderData);
+                            
+                            const emailResult = await sendProductOrderConfirmation(orderData);
+                            
+                            if (emailResult.success) {
+                                console.log('✅ Email de confirmación para productos enviado exitosamente');
+                            } else {
+                                console.error('❌ Error enviando email para productos:', emailResult.error);
+                            }
+                        } catch (emailError) {
+                            console.error('❌ Error enviando email para productos:', emailError);
+                        }
+                    });
                 });
-            });
+            } else {
+                // Es un servicio (lógica existente)
+                console.log('🔧 Procesando pago de servicio');
+
+                // Generar QR único
+                const qrCode = uuidv4();
+                console.log('🔧 QR generado:', qrCode);
+
+                // Guardar reserva pagada en la base de datos
+                const query = `
+                    INSERT INTO paid_bookings
+                    (customer_name, customer_email, customer_phone, service_type, service_id,
+                     service_variant, appointment_date, total_amount, stripe_payment_id, qr_code, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')
+                `;
+
+                const queryParams = [
+                    metadata.customerName,
+                    metadata.customerEmail,
+                    metadata.customerPhone,
+                    metadata.serviceType,
+                    metadata.serviceId,
+                    metadata.serviceVariant,
+                    metadata.appointmentDate,
+                    metadata.totalAmount,
+                    session.payment_intent,
+                    qrCode
+                ];
+
+                console.log('🔧 Guardando reserva con parámetros:', queryParams);
+
+                ensureConnection((err) => {
+                    if (err) {
+                        return res.status(500).json({ error: 'Database connection failed' });
+                    }
+                    
+                    conexion.query(query, queryParams, async (err, result) => {
+                        if (err) {
+                            console.error('❌ Error saving paid booking:', err);
+                            return res.status(500).json({ error: 'Error saving booking' });
+                        }
+
+                        console.log('✅ Reserva pagada guardada exitosamente en DB');
+
+                        // Enviar email de confirmación
+                        try {
+                            const bookingData = {
+                                customerName: metadata.customerName,
+                                customerEmail: metadata.customerEmail,
+                                customerPhone: metadata.customerPhone,
+                                serviceName: metadata.serviceName,
+                                serviceVariant: metadata.serviceVariant,
+                                appointmentDate: metadata.appointmentDate,
+                                totalAmount: metadata.totalAmount
+                            };
+
+                            console.log('📧 Enviando email con datos:', bookingData);
+                            
+                            const emailResult = await sendBookingConfirmation(bookingData, qrCode);
+                            
+                            if (emailResult.success) {
+                                console.log('✅ Email de confirmación enviado exitosamente');
+                            } else {
+                                console.error('❌ Error enviando email:', emailResult.error);
+                            }
+                        } catch (emailError) {
+                            console.error('❌ Error enviando email:', emailError);
+                        }
+                    });
+                });
+            }
         } else {
             console.log('🔧 Webhook ignorado (tipo no manejado):', event.type);
         }
@@ -368,6 +673,35 @@ const paymentsController = {
                     return res.status(500).json({ error: 'Error fetching bookings' });
                 }
                 res.json(results);
+            });
+        });
+    },
+
+    deletePaidBooking(req, res) {
+        const { id } = req.params;
+        const query = 'DELETE FROM paid_bookings WHERE id = ?';
+
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+        
+            conexion.query(query, [id], (err, result) => {
+                if (err) {
+                    console.error('Error deleting paid booking:', err);
+                    return res.status(500).json({ error: 'Error deleting booking' });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Booking not found' });
+                }
+                
+                console.log(`✅ Paid booking with ID ${id} deleted successfully`);
+                res.json({ 
+                    success: true, 
+                    message: 'Booking deleted successfully',
+                    deletedId: id 
+                });
             });
         });
     },

@@ -139,7 +139,8 @@ const productsController = {
             
             const { id } = req.params;
             
-            const query = 'UPDATE products SET active = false WHERE id = ?';
+            // ← CAMBIAR A DELETE REAL
+            const query = 'DELETE FROM products WHERE id = ?';
             
             conexion.query(query, [id], (err, result) => {
                 if (err) {
@@ -151,8 +152,8 @@ const productsController = {
                     return res.status(404).json({ error: 'Product not found' });
                 }
                 
-                console.log('✅ Producto eliminado exitosamente:', id);
-                res.json({ message: 'Producto eliminado exitosamente' });
+                console.log('✅ Producto eliminado completamente de la BD:', id);
+                res.json({ message: 'Producto eliminado completamente' });
             });
         });
     },

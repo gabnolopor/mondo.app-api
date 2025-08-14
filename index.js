@@ -25,7 +25,7 @@ const facialesRouter = require("./routes/faciales-router");
 const qrRouter = require("./routes/qr-router");
 const paymentsRouter = require("./routes/payments-router");
 const productsRouter = require("./routes/products-router");
-
+const emailRouter = require("./routes/email-router");
 const app = express();
 
 const allowedOrigins = ['https://mondo.com.es','https://www.mondo.com.es', 'http://localhost:5173'];
@@ -76,7 +76,7 @@ app.use("/faciales", facialesRouter);
 app.use("/qr", qrRouter);
 app.use("/payments", paymentsRouter);
 app.use("/products", productsRouter);
-
+app.use("/email", emailRouter);
 //configuracion de puerto
 let puerto = process.env.PORT || 3000;
 

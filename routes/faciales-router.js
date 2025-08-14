@@ -8,5 +8,6 @@ router.get("/latest", facialesController.getLatestFaciales); // Route to get the
 router.post("/form", facialesController.facialFormSubmit); // Route to submit facial form data
 router.put("/:id", facialesController.updateFacial); // Route to update a facial
 router.delete("/:id", facialesController.deleteFacial); // Route to delete a facial
+router.patch("/:id/toggle", facialesController.toggleActive); // Route to toggle the active status of a facial
 
 module.exports = router; 

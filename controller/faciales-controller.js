@@ -1,13 +1,14 @@
 const { conexion, ensureConnection } = require("../database");
 
 const facialesController = {
-    // Function to get all faciales
+    //funcion para obtener los rituales faciales
     getFaciales(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
+            // ← AGREGAR FILTRO: solo faciales activos
             let comandoFaciales = "SELECT * FROM ritual_facial";
             conexion.query(comandoFaciales, (err, resultados, campos) => {
                 if (err) {
@@ -18,15 +19,15 @@ const facialesController = {
             });
         });
     },
-
-    // Function to get the latest faciales
+    //funcion para obtener los ultimos rituales faciales
     getLatestFaciales(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let comandoFaciales = "SELECT * FROM ritual_facial ORDER BY id_ritualFacial DESC";
+            // ← AGREGAR FILTRO: solo faciales activos
+            let comandoFaciales = "SELECT * FROM ritual_facial WHERE active = true ORDER BY id_ritualFacial DESC";
             conexion.query(comandoFaciales, (err, resultados, campos) => {
                 if (err) {
                     res.status(500).json({ error: err.message });
@@ -91,6 +92,31 @@ const facialesController = {
                     return;
                 }
                 res.sendStatus(200);
+            });
+        });
+    },
+    toggleActive(req, res) {
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            const { id } = req.params;
+            
+            const query = 'UPDATE ritual_facial SET active = NOT active WHERE id_ritualFacial = ?';
+            
+            conexion.query(query, [id], (err, result) => {
+                if (err) {
+                    console.error('Error toggling service status:', err);
+                    return res.status(500).json({ error: 'Error toggling service status' });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Service not found' });
+                }
+                
+                console.log('✅ Estado del servicio cambiado exitosamente:', id);
+                res.json({ message: 'Estado del servicio cambiado exitosamente' });
             });
         });
     }

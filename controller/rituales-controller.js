@@ -18,6 +18,7 @@ const ritualesController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
+            // ← AGREGAR FILTRO: solo rituales activos
             let comandoRituales = "SELECT * FROM rituales";
             conexion.query(comandoRituales, (err, resultados, campos) => {
                 if (err) {
@@ -28,7 +29,6 @@ const ritualesController = {
             });
         });
     },
-
     //funcion para obtener los ultimos rituales
     getLatestRituales(req, res) {
         ensureConnection((err) => {
@@ -36,7 +36,8 @@ const ritualesController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let comandoRituales = "SELECT * FROM rituales ORDER BY id_ritual DESC";
+            // ← AGREGAR FILTRO: solo rituales activos
+            let comandoRituales = "SELECT * FROM rituales WHERE active = true ORDER BY id_ritual DESC";
             conexion.query(comandoRituales, (err, resultados, campos) => {
                 if (err) {
                     res.status(500).json({ error: err.message });
@@ -101,6 +102,31 @@ const ritualesController = {
                     return;
                 }
                 res.sendStatus(200);
+            });
+        });
+    },
+    toggleActive(req, res) {
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            const { id } = req.params;
+            
+            const query = 'UPDATE rituales SET active = NOT active WHERE id_ritual = ?';
+            
+            conexion.query(query, [id], (err, result) => {
+                if (err) {
+                    console.error('Error toggling service status:', err);
+                    return res.status(500).json({ error: 'Error toggling service status' });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Service not found' });
+                }
+                
+                console.log('✅ Estado del servicio cambiado exitosamente:', id);
+                res.json({ message: 'Estado del servicio cambiado exitosamente' });
             });
         });
     }

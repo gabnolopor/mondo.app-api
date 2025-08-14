@@ -9,5 +9,6 @@ router.get("/latest", ritualesController.getLatestRituales); // Ruta para obtene
 router.post("/form", ritualesController.ritualFormSubmit); // Ruta para enviar datos del formulario
 router.put("/:id", ritualesController.updateRitual); // Ruta para actualizar
 router.delete("/:id", ritualesController.deleteRitual); // Ruta para eliminar
+router.patch("/:id/toggle", ritualesController.toggleActive); // Route to toggle the active status of a ritual
 
 module.exports = router;

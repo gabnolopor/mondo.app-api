@@ -8,6 +8,7 @@ const masajesController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
+            // ← AGREGAR FILTRO: solo masajes activos
             let comandoMasajes = "SELECT * FROM masajes";
             conexion.query(comandoMasajes, (err, resultados, campos) => {
                 if (err) {
@@ -25,7 +26,8 @@ const masajesController = {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            let comandoMasajes = "SELECT * FROM masajes ORDER BY id_masaje DESC";
+            // ← AGREGAR FILTRO: solo masajes activos
+            let comandoMasajes = "SELECT * FROM masajes WHERE active = true ORDER BY id_masaje DESC";
             conexion.query(comandoMasajes, (err, resultados, campos) => {
                 if (err) {
                     res.status(500).json({ error: err.message });
@@ -87,6 +89,31 @@ const masajesController = {
                     return;
                 }
                 res.sendStatus(200);
+            });
+        });
+    },
+    toggleActive(req, res) {
+        ensureConnection((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database connection failed' });
+            }
+            
+            const { id } = req.params;
+            
+            const query = 'UPDATE masajes SET active = NOT active WHERE id_masaje = ?';
+            
+            conexion.query(query, [id], (err, result) => {
+                if (err) {
+                    console.error('Error toggling service status:', err);
+                    return res.status(500).json({ error: 'Error toggling service status' });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Service not found' });
+                }
+                
+                console.log('✅ Estado del servicio cambiado exitosamente:', id);
+                res.json({ message: 'Estado del servicio cambiado exitosamente' });
             });
         });
     }

@@ -8,5 +8,6 @@ router.get("/latest", masajesController.getLatestMasajes); // Ruta para obtener 
 router.post("/form", masajesController.masajeFormSubmit); // Ruta para enviar datos del formulario
 router.put("/:id", masajesController.updateMasaje); // Ruta para actualizar
 router.delete("/:id", masajesController.deleteMasaje); // Ruta para eliminar
+router.patch("/:id/toggle", masajesController.toggleActive); // Route to toggle the active status of a masaje
 
 module.exports = router;
