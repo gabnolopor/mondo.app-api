@@ -1,6 +1,6 @@
 const { conexion, ensureConnection } = require('../database');
 const { v4: uuidv4 } = require('uuid');
-const { sendBookingConfirmation, sendProductOrderConfirmation } = require('./email-controller');
+const { sendBookingConfirmation, sendProductOrderConfirmation, sendProductOrderAlert } = require('./email-controller');
 
 // Verificar si Stripe está configurado
 let stripe;
