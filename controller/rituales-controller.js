@@ -11,39 +11,40 @@ const ritualesController = {
         });
     },
 
-    //funcion para obtener los rituales
+    //funcion para obtener los rituales (TODOS, sin filtro de activos)
     getRituales(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            // ← AGREGAR FILTRO: solo rituales activos
-            let comandoRituales = "SELECT * FROM rituales";
+            // Mostrar TODOS los rituales, sin filtro de activos
+            let comandoRituales = "SELECT * FROM rituales ORDER BY id_ritual DESC";
             conexion.query(comandoRituales, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error fetching rituales:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.json(resultados).status(200);
+                res.json(resultados);
             });
         });
     },
-    //funcion para obtener los ultimos rituales
+
+    //funcion para obtener los ultimos rituales (SOLO activos)
     getLatestRituales(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            // ← AGREGAR FILTRO: solo rituales activos
+            // Solo rituales activos para la vista pública
             let comandoRituales = "SELECT * FROM rituales WHERE active = true ORDER BY id_ritual DESC";
             conexion.query(comandoRituales, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error fetching latest rituales:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.json(resultados).status(200);
+                res.json(resultados);
             });
         });
     },
@@ -56,13 +57,19 @@ const ritualesController = {
             }
             
             let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
-            let comandoForm = "INSERT INTO rituales (nombre_ritual, descripcion_ritual, precio_ritual, precio_ritualPareja, duracion_ritual) VALUES (?, ?, ?, ?, ?)";
+            
+            // active se establece automáticamente como true
+            let comandoForm = "INSERT INTO rituales (nombre_ritual, descripcion_ritual, precio_ritual, precio_ritualPareja, duracion_ritual, active) VALUES (?, ?, ?, ?, ?, true)";
             conexion.query(comandoForm, [nombre, descripcion, precio, precioPareja, duracion], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error creating ritual:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.sendStatus(200);
+                res.json({ 
+                    success: true, 
+                    message: 'Ritual creado exitosamente',
+                    id: resultados.insertId 
+                });
             });
         });
     },
@@ -76,13 +83,23 @@ const ritualesController = {
             
             let { id } = req.params;
             let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
-            let comandoUpdate = "UPDATE rituales SET nombre_ritual = ?, descripcion_ritual = ?, precio_ritual = ?, precio_ritualPareja = ?, duracion_ritual = ? WHERE id_ritual = ?";
+            
+            // active se mantiene como true automáticamente
+            let comandoUpdate = "UPDATE rituales SET nombre_ritual = ?, descripcion_ritual = ?, precio_ritual = ?, precio_ritualPareja = ?, duracion_ritual = ?, active = true WHERE id_ritual = ?";
             conexion.query(comandoUpdate, [nombre, descripcion, precio, precioPareja, duracion, id], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error updating ritual:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.sendStatus(200);
+                
+                if (resultados.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Ritual no encontrado' });
+                }
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Ritual actualizado exitosamente' 
+                });
             });
         });
     },

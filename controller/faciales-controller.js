@@ -1,39 +1,40 @@
 const { conexion, ensureConnection } = require("../database");
 
 const facialesController = {
-    //funcion para obtener los rituales faciales
+    //funcion para obtener los rituales faciales (TODOS, sin filtro de activos)
     getFaciales(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            // ← AGREGAR FILTRO: solo faciales activos
-            let comandoFaciales = "SELECT * FROM ritual_facial";
+            // Mostrar TODOS los faciales, sin filtro de activos
+            let comandoFaciales = "SELECT * FROM ritual_facial ORDER BY id_ritualFacial DESC";
             conexion.query(comandoFaciales, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error fetching faciales:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.json(resultados).status(200);
+                res.json(resultados);
             });
         });
     },
-    //funcion para obtener los ultimos rituales faciales
+
+    //funcion para obtener los ultimos rituales faciales (SOLO activos)
     getLatestFaciales(req, res) {
         ensureConnection((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Database connection failed' });
             }
             
-            // ← AGREGAR FILTRO: solo faciales activos
+            // Solo faciales activos para la vista pública
             let comandoFaciales = "SELECT * FROM ritual_facial WHERE active = true ORDER BY id_ritualFacial DESC";
             conexion.query(comandoFaciales, (err, resultados, campos) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error fetching latest faciales:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.json(resultados).status(200);
+                res.json(resultados);
             });
         });
     },
@@ -46,18 +47,24 @@ const facialesController = {
             }
             
             let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
-            let comandoForm = "INSERT INTO ritual_facial (nombre_ritualFacial, descripcion_ritualFacial, precio_ritualFacial, precio_ritualFacialPareja, duracion_ritualFacial) VALUES (?, ?, ?, ?, ?)";
+            
+            // active se establece automáticamente como true
+            let comandoForm = "INSERT INTO ritual_facial (nombre_ritualFacial, descripcion_ritualFacial, precio_ritualFacial, precio_ritualFacialPareja, duracion_ritualFacial, active) VALUES (?, ?, ?, ?, ?, true)";
             conexion.query(comandoForm, [nombre, descripcion, precio, precioPareja, duracion], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error creating facial:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.sendStatus(200);
+                res.json({ 
+                    success: true, 
+                    message: 'Facial creado exitosamente',
+                    id: resultados.insertId 
+                });
             });
         });
     },
 
-    // Function to update a facial
+    //funcion para actualizar un facial
     updateFacial(req, res) {
         ensureConnection((err) => {
             if (err) {
@@ -66,13 +73,23 @@ const facialesController = {
             
             let { id } = req.params;
             let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
-            let comandoUpdate = "UPDATE ritual_facial SET nombre_ritualFacial = ?, descripcion_ritualFacial = ?, precio_ritualFacial = ?, precio_ritualFacialPareja = ?, duracion_ritualFacial = ? WHERE id_ritualFacial = ?";
+            
+            // active se mantiene como true automáticamente
+            let comandoUpdate = "UPDATE ritual_facial SET nombre_ritualFacial = ?, descripcion_ritualFacial = ?, precio_ritualFacial = ?, precio_ritualFacialPareja = ?, duracion_ritualFacial = ?, active = true WHERE id_ritualFacial = ?";
             conexion.query(comandoUpdate, [nombre, descripcion, precio, precioPareja, duracion, id], (err, resultados) => {
                 if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
+                    console.error('Error updating facial:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-                res.sendStatus(200);
+                
+                if (resultados.affectedRows === 0) {
+                    return res.status(404).json({ error: 'Facial no encontrado' });
+                }
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Facial actualizado exitosamente' 
+                });
             });
         });
     },
