@@ -248,6 +248,7 @@ async createProductOrder(req, res) {
         customerAddress,
         subtotal,
         ivaAmount,
+        shippingCost,
         totalAmount,
         orderItems
     } = req.body;
@@ -256,6 +257,7 @@ async createProductOrder(req, res) {
         customerName,
         subtotal,
         ivaAmount,
+        shippingCost,
         totalAmount,
         itemsCount: orderItems.length,
         stripeConfigured
@@ -270,7 +272,7 @@ async createProductOrder(req, res) {
         const query = `
         INSERT INTO product_orders
         (customer_name, customer_email, customer_phone, customer_address, 
-         subtotal, iva_amount, total_amount, stripe_payment_id, qr_code, status, order_items)
+         subtotal, iva_amount, shipping_cost, total_amount, stripe_payment_id, qr_code, status, order_items)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)
     `;
 
@@ -286,6 +288,7 @@ async createProductOrder(req, res) {
                 customerAddress,
                 subtotal,
                 ivaAmount,
+                shippingCost,
                 totalAmount,
                 'pi_test_' + uuidv4().substring(0, 24),
                 qrCode,
@@ -308,7 +311,7 @@ async createProductOrder(req, res) {
                         qrCode
                     };
 
-                    await sendBookingConfirmation(orderData, qrCode); // Assuming sendBookingConfirmation can handle product orders
+                    await sendProductOrderConfirmation(orderData, qrCode);
                     console.log('✅ Email de confirmación enviado (modo prueba)');
                 } catch (emailError) {
                     console.error('❌ Error enviando email (modo prueba):', emailError);
@@ -355,6 +358,18 @@ async createProductOrder(req, res) {
                         unit_amount: Math.round(ivaAmount * 100),
                     },
                     quantity: 1,
+                },
+                // Costo de envío como línea separada
+                {
+                    price_data: {
+                        currency: 'eur',
+                        product_data: {
+                            name: 'Costo de Envío',
+                            description: shippingCost === 3 ? 'Envío dentro de Sevilla' : 'Envío fuera de Sevilla',
+                        },
+                        unit_amount: Math.round(shippingCost * 100),
+                    },
+                    quantity: 1,
                 }
             ],
             mode: 'payment',
@@ -367,6 +382,7 @@ async createProductOrder(req, res) {
                 customerAddress,
                 subtotal: subtotal.toString(),
                 ivaAmount: ivaAmount.toString(),
+                shippingCost: shippingCost.toString(),
                 totalAmount: totalAmount.toString(),
                 orderType: 'product',
                 orderItems: JSON.stringify(orderItems)
@@ -514,8 +530,8 @@ trackOrder(req, res) {
                 const query = `
                     INSERT INTO product_orders
                     (customer_name, customer_email, customer_phone, customer_address,
-                     total_amount, stripe_payment_id, qr_code, status, order_items)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', ?)
+                     subtotal, iva_amount, shipping_cost, total_amount, stripe_payment_id, qr_code, status, order_items)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)
                 `;
 
                 const queryParams = [
@@ -523,6 +539,9 @@ trackOrder(req, res) {
                     metadata.customerEmail,
                     metadata.customerPhone,
                     metadata.customerAddress,
+                    parseFloat(metadata.subtotal),
+                    parseFloat(metadata.ivaAmount),
+                    parseFloat(metadata.shippingCost),
                     parseFloat(metadata.totalAmount),
                     session.payment_intent,
                     qrCode,
