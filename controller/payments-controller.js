@@ -527,10 +527,12 @@ trackOrder(req, res) {
                 const qrCode = uuidv4();
                 console.log('🔧 QR generado para producto:', qrCode);
 
+                // Consulta explícita que especifica exactamente qué columnas insertar
                 const query = `
                     INSERT INTO product_orders
                     (customer_name, customer_email, customer_phone, customer_address,
-                     subtotal, iva_amount, shipping_cost, total_amount, stripe_payment_id, qr_code, status, order_items)
+                     subtotal, iva_amount, shipping_cost, total_amount, 
+                     stripe_payment_id, qr_code, status, order_items)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
 
@@ -550,6 +552,9 @@ trackOrder(req, res) {
                 ];
 
                 console.log('🔧 Guardando pedido de productos con parámetros:', queryParams);
+                console.log('🔧 Número de columnas en la consulta:', 12);
+                console.log('🔧 Número de parámetros proporcionados:', queryParams.length);
+                console.log('🔧 Columnas omitidas (manejadas por MySQL): created_at, updated_at');
 
                 ensureConnection((err) => {
                     if (err) {
