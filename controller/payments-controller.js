@@ -531,7 +531,7 @@ trackOrder(req, res) {
                     INSERT INTO product_orders
                     (customer_name, customer_email, customer_phone, customer_address,
                      subtotal, iva_amount, shipping_cost, total_amount, stripe_payment_id, qr_code, status, order_items)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
 
                 const queryParams = [
@@ -545,6 +545,7 @@ trackOrder(req, res) {
                     parseFloat(metadata.totalAmount),
                     session.payment_intent,
                     qrCode,
+                    'paid', // status
                     metadata.orderItems
                 ];
 
