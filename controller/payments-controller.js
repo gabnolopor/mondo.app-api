@@ -311,8 +311,33 @@ async createProductOrder(req, res) {
                         qrCode
                     };
 
-                    await sendProductOrderConfirmation(orderData, qrCode);
+                    await sendProductOrderConfirmation(orderData);
                     console.log('✅ Email de confirmación enviado (modo prueba)');
+
+                    // Enviar email de alerta a vpp.mondo@gmail.com
+                    try {
+                        const alertEmailResult = await sendProductOrderAlert({
+                            customerName,
+                            customerEmail,
+                            customerPhone,
+                            customerAddress,
+                            orderItems,
+                            subtotal,
+                            ivaAmount,
+                            shippingCost,
+                            totalAmount,
+                            qrCode,
+                            orderId: qrCode.substring(0, 8)
+                        });
+
+                        if (alertEmailResult.success) {
+                            console.log('✅ Email de alerta a vpp.mondo enviado exitosamente (modo prueba)');
+                        } else {
+                            console.error('❌ Error enviando email de alerta a vpp.mondo (modo prueba):', alertEmailResult.error);
+                        }
+                    } catch (alertError) {
+                        console.error('❌ Error enviando email de alerta a vpp.mondo (modo prueba):', alertError);
+                    }
                 } catch (emailError) {
                     console.error('❌ Error enviando email (modo prueba):', emailError);
                 }
@@ -587,6 +612,31 @@ trackOrder(req, res) {
                                 console.log('✅ Email de confirmación para productos enviado exitosamente');
                             } else {
                                 console.error('❌ Error enviando email para productos:', emailResult.error);
+                            }
+
+                            // Enviar email de alerta a vpp.mondo@gmail.com
+                            try {
+                                const alertEmailResult = await sendProductOrderAlert({
+                                    customerName: metadata.customerName,
+                                    customerEmail: metadata.customerEmail,
+                                    customerPhone: metadata.customerPhone,
+                                    customerAddress: metadata.customerAddress,
+                                    orderItems: JSON.parse(metadata.orderItems),
+                                    subtotal: metadata.subtotal,
+                                    ivaAmount: metadata.ivaAmount,
+                                    shippingCost: metadata.shippingCost,
+                                    totalAmount: metadata.totalAmount,
+                                    qrCode: qrCode,
+                                    orderId: qrCode.substring(0, 8) // Usar parte del QR como ID del pedido
+                                });
+
+                                if (alertEmailResult.success) {
+                                    console.log('✅ Email de alerta a vpp.mondo enviado exitosamente');
+                                } else {
+                                    console.error('❌ Error enviando email de alerta a vpp.mondo:', alertEmailResult.error);
+                                }
+                            } catch (alertError) {
+                                console.error('❌ Error enviando email de alerta a vpp.mondo:', alertError);
                             }
                         } catch (emailError) {
                             console.error('❌ Error enviando email para productos:', emailError);

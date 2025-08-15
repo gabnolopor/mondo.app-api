@@ -400,7 +400,294 @@ const generateProductOrderHTML = (orderData) => {
     `;
 };
 
-// ... existing code ...
+// Función para generar HTML del email de alerta de pedido de productos
+const generateProductOrderAlertHTML = (orderData) => {
+  const { 
+    customerName, 
+    customerEmail, 
+    customerPhone, 
+    customerAddress, 
+    orderItems, 
+    subtotal, 
+    ivaAmount, 
+    shippingCost, 
+    totalAmount, 
+    qrCode, 
+    orderId 
+  } = orderData;
+
+  const itemsHTML = orderItems
+    .map(
+      (item) => `
+        <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                <strong>${item.name}</strong><br>
+                <small>Cantidad: ${item.quantity} x €${item.price}</small>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                €${(item.price * item.quantity).toFixed(2)}
+            </td>
+        </tr>
+    `
+    )
+    .join("");
+
+  return `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Nuevo Pedido de Productos - MONDO</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f9f9f9;
+                }
+                .container {
+                    background-color: white;
+                    border-radius: 10px;
+                    padding: 30px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    color: #B898B0;
+                }
+                .logo {
+                    font-size: 2.5em;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                }
+                .alert-badge {
+                    background-color: #28a745;
+                    color: white;
+                    padding: 5px 15px;
+                    border-radius: 20px;
+                    font-size: 0.9em;
+                    display: inline-block;
+                    margin-bottom: 20px;
+                }
+                .customer-info {
+                    background-color: #f8f9fa;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }
+                .detail-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 10px 0;
+                    padding: 8px 0;
+                    border-bottom: 1px solid #eee;
+                }
+                .detail-label {
+                    font-weight: bold;
+                    color: #666;
+                }
+                .detail-value {
+                    color: #333;
+                }
+                .products-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }
+                .products-table th,
+                .products-table td {
+                    padding: 8px;
+                    text-align: left;
+                    border-bottom: 1px solid #eee;
+                }
+                .products-table th {
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                }
+                .total-section {
+                    background-color: #e3f2fd;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    text-align: center;
+                }
+                .total-amount {
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    color: #1976d2;
+                }
+                .qr-section {
+                    text-align: center;
+                    margin: 20px 0;
+                    padding: 15px;
+                    background-color: #fff3cd;
+                    border-radius: 8px;
+                    border: 2px solid #ffc107;
+                }
+                .qr-code {
+                    font-family: monospace;
+                    font-size: 1.1em;
+                    background-color: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 5px;
+                    border: 1px solid #ddd;
+                    display: inline-block;
+                    margin: 10px 0;
+                }
+                .contact-info {
+                    background-color: #f8f9fa;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    text-align: center;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #eee;
+                    color: #666;
+                    font-size: 0.9em;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="logo">MONDO</div>
+                    <h2>🛒 Nuevo Pedido de Productos</h2>
+                    <div class="alert-badge">✅ PAGADO</div>
+                </div>
+
+                <div class="customer-info">
+                    <h3>👤 Información del Cliente</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Nombre:</span>
+                        <span class="detail-value">${customerName}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email:</span>
+                        <span class="detail-value">${customerEmail}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Teléfono:</span>
+                        <span class="detail-value">${customerPhone}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Dirección:</span>
+                        <span class="detail-value">${customerAddress}</span>
+                    </div>
+                </div>
+
+                <div class="products-section">
+                    <h3>📦 Productos del Pedido</h3>
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th style="text-align: right;">Precio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="total-section">
+                    <h3>💰 Desglose del Pedido</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Subtotal:</span>
+                        <span class="detail-value">€${parseFloat(subtotal).toFixed(2)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">IVA (21%):</span>
+                        <span class="detail-value">€${parseFloat(ivaAmount).toFixed(2)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Envío:</span>
+                        <span class="detail-value">€${parseFloat(shippingCost).toFixed(2)}</span>
+                    </div>
+                    <div class="detail-row" style="border-bottom: none; font-weight: bold;">
+                        <span class="detail-label">Total:</span>
+                        <span class="detail-value total-amount">€${parseFloat(totalAmount).toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div class="qr-section">
+                    <h3>🔍 Código de Seguimiento</h3>
+                    <div class="qr-code">${qrCode}</div>
+                    <p><small>ID del Pedido: #${orderId}</small></p>
+                </div>
+
+                <div class="contact-info">
+                    <h3>📱 Contacto Directo del Cliente</h3>
+                    <p><strong>Email:</strong> <a href="mailto:${customerEmail}">${customerEmail}</a></p>
+                    <p><strong>Teléfono:</strong> <a href="tel:${customerPhone}">${customerPhone}</a></p>
+                    <p><strong>WhatsApp:</strong> <a href="https://wa.me/${customerPhone.replace(/\D/g, '')}">${customerPhone}</a></p>
+                </div>
+
+                <div class="footer">
+                    <p>Este pedido fue procesado automáticamente desde la web</p>
+                    <p>© ${new Date().getFullYear()} MONDO - Todos los derechos reservados</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+};
+
+// Función para enviar email de alerta de pedido de productos a vpp.mondo
+const sendProductOrderAlert = async (orderData) => {
+  try {
+    console.log(
+      "📧 Enviando email de alerta de pedido de productos a vpp.mondo@gmail.com"
+    );
+
+    const transporter = createTransporter();
+
+    if (!transporter) {
+      console.error("❌ No se pudo crear el transporter de email");
+      return { success: false, error: "Email no configurado" };
+    }
+
+    const mailOptions = {
+      from: `"MONDO" <${process.env.EMAIL_USER}>`,
+      to: "vpp.mondo@gmail.com",
+      subject: `🛒 Nuevo Pedido de Productos - ${orderData.customerName}`,
+      html: generateProductOrderAlertHTML(orderData),
+    };
+
+    console.log("📧 Enviando email de alerta con opciones:", {
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      from: mailOptions.from,
+    });
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(
+      "✅ Email de alerta de pedido de productos enviado exitosamente:",
+      info.messageId
+    );
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(
+      "❌ Error enviando email de alerta de pedido de productos:",
+      error
+    );
+    console.error("❌ Detalles del error:", {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+    });
+    return { success: false, error: error.message };
+  }
+};
 
 // Función para generar HTML del email de contacto
 const generateContactHTML = (data) => {
@@ -922,6 +1209,7 @@ module.exports = {
   sendBookingConfirmation,
   sendBookingReminder,
   sendProductOrderConfirmation,
+  sendProductOrderAlert,
   sendInquiryEmail,
   sendContactEmail,
   generateInquiryHTML,
