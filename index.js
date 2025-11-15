@@ -6,7 +6,7 @@ const bunyan = require("bunyan");
 
 require("dotenv").config();
 
-const { conexion, isConnectionActive, ensureConnection } = require("./database");
+const { pool, isPoolHealthy } = require("./database");
 
 //configuracion de logger
 const logger = bunyan.createLogger({name: "ServidorMondo"});
@@ -105,33 +105,22 @@ app.head('/health', (req, res) => {
 
 // Health check más detallado (opcional)
 app.get('/health/detailed', (req, res) => {
-    ensureConnection((err) => {
+    pool.query('SELECT 1', (err, results) => {
         if (err) {
-            logger.error("Error en la conexión de la base de datos", err);
+            logger.error("Error en la consulta de la base de datos", err);
             return res.status(500).json({ 
                 status: 'ERROR',
-                error: 'Database connection failed',
+                error: 'Database query failed',
                 timestamp: new Date().toISOString()
             });
+        } else {
+            return res.status(200).json({ 
+                status: 'OK',
+                database: 'Connected',
+                timestamp: new Date().toISOString(),
+                service: 'Mondo API'
+            });
         }
-        
-        conexion.query('SELECT 1', (err, results) => {
-            if (err) {
-                logger.error("Error en la consulta de la base de datos", err);
-                return res.status(500).json({ 
-                    status: 'ERROR',
-                    error: 'Database query failed',
-                    timestamp: new Date().toISOString()
-                });
-            } else {
-                return res.status(200).json({ 
-                    status: 'OK',
-                    database: 'Connected',
-                    timestamp: new Date().toISOString(),
-                    service: 'Mondo API'
-                });
-            }
-        });
     });
 });
 

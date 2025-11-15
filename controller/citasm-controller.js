@@ -1,61 +1,43 @@
-const { conexion, ensureConnection } = require("../database");
+const { pool } = require("../database");
 
 const citasmController = {
     //funcion para obtener las citas
     getCitas(req, res) {
-        ensureConnection((err) => {
+        let comandoCitas = "SELECT * FROM citasm";
+        pool.query(comandoCitas, (err, resultados, campos) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                res.status(500).json({ error: err.message });
+                return;
             }
-            
-            let comandoCitas = "SELECT * FROM citasm";
-            conexion.query(comandoCitas, (err, resultados, campos) => {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                res.json(resultados).status(200);
-            });
+            res.json(resultados).status(200);
         });
     },
 
     //funcion para eliminar una cita
     deleteCita(req, res) {
-        ensureConnection((err) => {
+        let telefono = req.params.telefono;
+        let comandoEliminar = "DELETE FROM citasm WHERE telefono = ?";
+        pool.query(comandoEliminar, [telefono], (err, resultados) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error("Error al eliminar la cita:", err);
+                res.status(500).json({ error: "Error al eliminar la cita" });
+            } else {
+                res.status(200).json({ message: "Cita eliminada correctamente" });
             }
-            
-            let telefono = req.params.telefono;
-            let comandoEliminar = "DELETE FROM citasm WHERE telefono = ?";
-            conexion.query(comandoEliminar, [telefono], (err, resultados) => {
-                if (err) {
-                    console.error("Error al eliminar la cita:", err);
-                    res.status(500).json({ error: "Error al eliminar la cita" });
-                } else {
-                    res.status(200).json({ message: "Cita eliminada correctamente" });
-                }
-            });
         });
     },
 
     //funcion para crear una cita
     createCita(req, res) {
-        ensureConnection((err) => {
+        let { nombre, correo, telefono, masaje, mensaje } = req.body;
+        let comandoCreate = "INSERT INTO citasm (nombre, correo, telefono, masaje, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
+        pool.query(comandoCreate, [nombre, correo, telefono, masaje, mensaje], (err, resultados) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error("Database error:", err);
+                res.status(500).json({ error: "Error al crear la cita", details: err.message });
+                return;
             }
-            
-            let { nombre, correo, telefono, masaje, mensaje } = req.body;
-            let comandoCreate = "INSERT INTO citasm (nombre, correo, telefono, masaje, mensaje, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
-            conexion.query(comandoCreate, [nombre, correo, telefono, masaje, mensaje], (err, resultados) => {
-                if (err) {
-                    console.error("Database error:", err);
-                    res.status(500).json({ error: "Error al crear la cita", details: err.message });
-                    return;
-                }
-                res.status(200).json({ message: "Cita creada exitosamente" });
-            });
+            res.status(200).json({ message: "Cita creada exitosamente" });
         });
     }
 };

@@ -1,4 +1,4 @@
-const { conexion, ensureConnection } = require('../database');
+const { pool } = require('../database');
 const { v4: uuidv4 } = require('uuid');
 const { sendBookingConfirmation, sendProductOrderConfirmation, sendProductOrderAlert } = require('./email-controller');
 
@@ -70,12 +70,7 @@ const paymentsController = {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')
             `;
 
-            ensureConnection((err) => {
-                if (err) {
-                    return res.status(500).json({ error: 'Database connection failed' });
-                }
-                
-                conexion.query(query, [
+            pool.query(query, [
                     customerName,
                     customerEmail,
                     customerPhone,
@@ -119,7 +114,6 @@ const paymentsController = {
                         message: 'Reserva creada en modo prueba (Stripe no configurado o inválido)'
                     });
                 });
-            });
             return;
         }
 
@@ -181,12 +175,7 @@ const paymentsController = {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')
                 `;
 
-                ensureConnection((err) => {
-                    if (err) {
-                        return res.status(500).json({ error: 'Database connection failed' });
-                    }
-                    
-                    conexion.query(query, [
+                    pool.query(query, [
                         customerName,
                         customerEmail,
                         customerPhone,
@@ -230,58 +219,51 @@ const paymentsController = {
                             message: 'Reserva creada en modo prueba (fallback por error de Stripe)'
                         });
                     });
-                });
                 return;
             }
 
             res.status(500).json({ error: 'Error creating payment session: ' + error.message });
         }
     },
- 
 
-// Función para crear pedido de productos
-async createProductOrder(req, res) {
-    const {
-        customerName,
-        customerEmail,
-        customerPhone,
-        customerAddress,
-        subtotal,
-        ivaAmount,
-        shippingCost,
-        totalAmount,
-        orderItems
-    } = req.body;
+    // Función para crear pedido de productos
+    async createProductOrder(req, res) {
+        const {
+            customerName,
+            customerEmail,
+            customerPhone,
+            customerAddress,
+            subtotal,
+            ivaAmount,
+            shippingCost,
+            totalAmount,
+            orderItems
+        } = req.body;
 
-    console.log('🔧 Creando pedido de productos:', {
-        customerName,
-        subtotal,
-        ivaAmount,
-        shippingCost,
-        totalAmount,
-        itemsCount: orderItems.length,
-        stripeConfigured
-    });
+        console.log('🔧 Creando pedido de productos:', {
+            customerName,
+            subtotal,
+            ivaAmount,
+            shippingCost,
+            totalAmount,
+            itemsCount: orderItems.length,
+            stripeConfigured
+        });
 
-    // Si Stripe no está configurado, crear pedido de prueba
-    if (!stripe || !stripeConfigured) {
-        console.log('🔧 Creando pedido de prueba (Stripe no configurado)');
+        // Si Stripe no está configurado, crear pedido de prueba
+        if (!stripe || !stripeConfigured) {
+            console.log('🔧 Creando pedido de prueba (Stripe no configurado)');
 
-        const qrCode = uuidv4();
+            const qrCode = uuidv4();
 
-        const query = `
-        INSERT INTO product_orders
-        (customer_name, customer_email, customer_phone, customer_address, 
-         subtotal, iva_amount, shipping_cost, total_amount, stripe_payment_id, qr_code, status, order_items)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)
-    `;
+            const query = `
+                INSERT INTO product_orders
+                (customer_name, customer_email, customer_phone, customer_address, 
+                 subtotal, iva_amount, shipping_cost, total_amount, stripe_payment_id, qr_code, status, order_items)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)
+            `;
 
-        ensureConnection((err) => {
-            if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
-            }
-            
-            conexion.query(query, [
+            pool.query(query, [
                 customerName,
                 customerEmail,
                 customerPhone,
@@ -349,83 +331,82 @@ async createProductOrder(req, res) {
                     message: 'Pedido creado en modo prueba'
                 });
             });
-        });
-        return;
-    }
-
-    try {
-        console.log('🔧 Creando sesión de Stripe para productos');
-
-        // Crear sesión de pago con Stripe
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [
-                // Productos
-                ...orderItems.map(item => ({
-                    price_data: {
-                        currency: 'eur',
-                        product_data: {
-                            name: item.name,
-                            description: `Cantidad: ${item.quantity}`,
-                        },
-                        unit_amount: Math.round(item.price * 100), // Stripe usa centavos
-                    },
-                    quantity: item.quantity,
-                })),
-                // IVA como línea separada
-                {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: {
-                            name: 'IVA (21%)',
-                            description: 'Impuesto sobre el Valor Añadido',
-                        },
-                        unit_amount: Math.round(ivaAmount * 100),
-                    },
-                    quantity: 1,
-                },
-                // Costo de envío como línea separada
-                {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: {
-                            name: 'Costo de Envío',
-                            description: shippingCost === 3 ? 'Envío dentro de Sevilla' : 'Envío fuera de Sevilla',
-                        },
-                        unit_amount: Math.round(shippingCost * 100),
-                    },
-                    quantity: 1,
-                }
-            ],
-            mode: 'payment',
-            success_url: `${process.env.CLIENT_URL}/?payment=success`,
-            cancel_url: `${process.env.CLIENT_URL}/?payment=cancelled`,
-            metadata: {
-                customerName,
-                customerEmail,
-                customerPhone,
-                customerAddress,
-                subtotal: subtotal.toString(),
-                ivaAmount: ivaAmount.toString(),
-                shippingCost: shippingCost.toString(),
-                totalAmount: totalAmount.toString(),
-                orderType: 'product',
-                orderItems: JSON.stringify(orderItems)
-            }
-        });
-
-        console.log('✅ Sesión de Stripe creada para productos:', session.id);
-
-        if (!session.id) {
-            throw new Error('No se pudo crear la sesión de Stripe');
+            return;
         }
 
-        res.json({ sessionId: session.id });
-    } catch (error) {
-        console.error('Error creating product order session:', error);
-        res.status(500).json({ error: 'Error creating order session: ' + error.message });
-    }
-},
+        try {
+            console.log('🔧 Creando sesión de Stripe para productos');
+
+            // Crear sesión de pago con Stripe
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                    // Productos
+                    ...orderItems.map(item => ({
+                        price_data: {
+                            currency: 'eur',
+                            product_data: {
+                                name: item.name,
+                                description: `Cantidad: ${item.quantity}`,
+                            },
+                            unit_amount: Math.round(item.price * 100), // Stripe usa centavos
+                        },
+                        quantity: item.quantity,
+                    })),
+                    // IVA como línea separada
+                    {
+                        price_data: {
+                            currency: 'eur',
+                            product_data: {
+                                name: 'IVA (21%)',
+                                description: 'Impuesto sobre el Valor Añadido',
+                            },
+                            unit_amount: Math.round(ivaAmount * 100),
+                        },
+                        quantity: 1,
+                    },
+                    // Costo de envío como línea separada
+                    {
+                        price_data: {
+                            currency: 'eur',
+                            product_data: {
+                                name: 'Costo de Envío',
+                                description: shippingCost === 3 ? 'Envío dentro de Sevilla' : 'Envío fuera de Sevilla',
+                            },
+                            unit_amount: Math.round(shippingCost * 100),
+                        },
+                        quantity: 1,
+                    }
+                ],
+                mode: 'payment',
+                success_url: `${process.env.CLIENT_URL}/?payment=success`,
+                cancel_url: `${process.env.CLIENT_URL}/?payment=cancelled`,
+                metadata: {
+                    customerName,
+                    customerEmail,
+                    customerPhone,
+                    customerAddress,
+                    subtotal: subtotal.toString(),
+                    ivaAmount: ivaAmount.toString(),
+                    shippingCost: shippingCost.toString(),
+                    totalAmount: totalAmount.toString(),
+                    orderType: 'product',
+                    orderItems: JSON.stringify(orderItems)
+                }
+            });
+
+            console.log('✅ Sesión de Stripe creada para productos:', session.id);
+
+            if (!session.id) {
+                throw new Error('No se pudo crear la sesión de Stripe');
+            }
+
+            res.json({ sessionId: session.id });
+        } catch (error) {
+            console.error('Error creating product order session:', error);
+            res.status(500).json({ error: 'Error creating order session: ' + error.message });
+        }
+    },
 
     // Función para obtener pedidos de productos
     getProductOrders(req, res) {
@@ -433,17 +414,12 @@ async createProductOrder(req, res) {
             SELECT * FROM product_orders
             ORDER BY created_at DESC
         `;
-        ensureConnection((err) => {
+        pool.query(query, (err, results) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error fetching product orders:', err);
+                return res.status(500).json({ error: 'Error fetching product orders' });
             }
-            conexion.query(query, (err, results) => {
-                if (err) {
-                    console.error('Error fetching product orders:', err);
-                    return res.status(500).json({ error: 'Error fetching product orders' });
-                }
-                res.json(results);
-            });
+            res.json(results);
         });
     },
     updateProductOrderStatus(req, res) {
@@ -458,43 +434,32 @@ async createProductOrder(req, res) {
     
         const query = 'UPDATE product_orders SET status = ?, updated_at = NOW() WHERE id = ?';
         
-        ensureConnection((err) => {
+        pool.query(query, [status, id], (err, result) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error updating order status:', err);
+                return res.status(500).json({ error: 'Error updating order status' });
             }
             
-            conexion.query(query, [status, id], (err, result) => {
-                if (err) {
-                    console.error('Error updating order status:', err);
-                    return res.status(500).json({ error: 'Error updating order status' });
-                }
-                
-                if (result.affectedRows === 0) {
-                    return res.status(404).json({ error: 'Order not found' });
-                }
-                
-                console.log('✅ Estado del pedido actualizado exitosamente:', id, 'Nuevo estado:', status);
-                res.json({ message: 'Estado del pedido actualizado exitosamente' });
-            });
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Order not found' });
+            }
+            
+            console.log('✅ Estado del pedido actualizado exitosamente:', id, 'Nuevo estado:', status);
+            res.json({ message: 'Estado del pedido actualizado exitosamente' });
         });
     },
     // Función para rastrear pedido por código QR
-trackOrder(req, res) {
-    const { trackingCode } = req.params;
+    trackOrder(req, res) {
+        const { trackingCode } = req.params;
 
-    console.log('🔍 Rastreando pedido con código:', trackingCode);
+        console.log('🔍 Rastreando pedido con código:', trackingCode);
 
-    const query = `
-        SELECT * FROM product_orders 
-        WHERE qr_code = ?
-    `;
+        const query = `
+            SELECT * FROM product_orders 
+            WHERE qr_code = ?
+        `;
 
-    ensureConnection((err) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database connection failed' });
-        }
-        
-        conexion.query(query, [trackingCode], (err, results) => {
+        pool.query(query, [trackingCode], (err, results) => {
             if (err) {
                 console.error('Error tracking order:', err);
                 return res.status(500).json({ error: 'Error tracking order' });
@@ -508,8 +473,7 @@ trackOrder(req, res) {
             console.log('✅ Pedido encontrado:', results[0].id);
             res.json(results[0]);
         });
-    });
-},
+    },
 
 
 
@@ -581,67 +545,61 @@ trackOrder(req, res) {
                 console.log('🔧 Número de parámetros proporcionados:', queryParams.length);
                 console.log('🔧 Columnas omitidas (manejadas por MySQL): created_at, updated_at');
 
-                ensureConnection((err) => {
+                pool.query(query, queryParams, async (err, result) => {
                     if (err) {
-                        return res.status(500).json({ error: 'Database connection failed' });
+                        console.error('❌ Error saving product order:', err);
+                        return res.status(500).json({ error: 'Error saving order' });
                     }
-                    
-                    conexion.query(query, queryParams, async (err, result) => {
-                        if (err) {
-                            console.error('❌ Error saving product order:', err);
-                            return res.status(500).json({ error: 'Error saving order' });
+
+                    console.log('✅ Pedido de productos guardado exitosamente en DB');
+
+                    // Enviar email de confirmación para productos
+                    try {
+                        const orderData = {
+                            customerName: metadata.customerName,
+                            customerEmail: metadata.customerEmail,
+                            orderItems: JSON.parse(metadata.orderItems),
+                            totalAmount: metadata.totalAmount,
+                            qrCode: qrCode
+                        };
+
+                        console.log('📧 Enviando email de confirmación para productos:', orderData);
+                        
+                        const emailResult = await sendProductOrderConfirmation(orderData);
+                        
+                        if (emailResult.success) {
+                            console.log('✅ Email de confirmación para productos enviado exitosamente');
+                        } else {
+                            console.error('❌ Error enviando email para productos:', emailResult.error);
                         }
 
-                        console.log('✅ Pedido de productos guardado exitosamente en DB');
-
-                        // Enviar email de confirmación para productos
+                        // Enviar email de alerta a vpp.mondo@gmail.com
                         try {
-                            const orderData = {
+                            const alertEmailResult = await sendProductOrderAlert({
                                 customerName: metadata.customerName,
                                 customerEmail: metadata.customerEmail,
+                                customerPhone: metadata.customerPhone,
+                                customerAddress: metadata.customerAddress,
                                 orderItems: JSON.parse(metadata.orderItems),
+                                subtotal: metadata.subtotal,
+                                ivaAmount: metadata.ivaAmount,
+                                shippingCost: metadata.shippingCost,
                                 totalAmount: metadata.totalAmount,
-                                qrCode: qrCode
-                            };
+                                qrCode: qrCode,
+                                orderId: qrCode.substring(0, 8) // Usar parte del QR como ID del pedido
+                            });
 
-                            console.log('📧 Enviando email de confirmación para productos:', orderData);
-                            
-                            const emailResult = await sendProductOrderConfirmation(orderData);
-                            
-                            if (emailResult.success) {
-                                console.log('✅ Email de confirmación para productos enviado exitosamente');
+                            if (alertEmailResult.success) {
+                                console.log('✅ Email de alerta a vpp.mondo enviado exitosamente');
                             } else {
-                                console.error('❌ Error enviando email para productos:', emailResult.error);
+                                console.error('❌ Error enviando email de alerta a vpp.mondo:', alertEmailResult.error);
                             }
-
-                            // Enviar email de alerta a vpp.mondo@gmail.com
-                            try {
-                                const alertEmailResult = await sendProductOrderAlert({
-                                    customerName: metadata.customerName,
-                                    customerEmail: metadata.customerEmail,
-                                    customerPhone: metadata.customerPhone,
-                                    customerAddress: metadata.customerAddress,
-                                    orderItems: JSON.parse(metadata.orderItems),
-                                    subtotal: metadata.subtotal,
-                                    ivaAmount: metadata.ivaAmount,
-                                    shippingCost: metadata.shippingCost,
-                                    totalAmount: metadata.totalAmount,
-                                    qrCode: qrCode,
-                                    orderId: qrCode.substring(0, 8) // Usar parte del QR como ID del pedido
-                                });
-
-                                if (alertEmailResult.success) {
-                                    console.log('✅ Email de alerta a vpp.mondo enviado exitosamente');
-                                } else {
-                                    console.error('❌ Error enviando email de alerta a vpp.mondo:', alertEmailResult.error);
-                                }
-                            } catch (alertError) {
-                                console.error('❌ Error enviando email de alerta a vpp.mondo:', alertError);
-                            }
-                        } catch (emailError) {
-                            console.error('❌ Error enviando email para productos:', emailError);
+                        } catch (alertError) {
+                            console.error('❌ Error enviando email de alerta a vpp.mondo:', alertError);
                         }
-                    });
+                    } catch (emailError) {
+                        console.error('❌ Error enviando email para productos:', emailError);
+                    }
                 });
             } else {
                 // Es un servicio (lógica existente)
@@ -674,44 +632,38 @@ trackOrder(req, res) {
 
                 console.log('🔧 Guardando reserva con parámetros:', queryParams);
 
-                ensureConnection((err) => {
+                pool.query(query, queryParams, async (err, result) => {
                     if (err) {
-                        return res.status(500).json({ error: 'Database connection failed' });
+                        console.error('❌ Error saving paid booking:', err);
+                        return res.status(500).json({ error: 'Error saving booking' });
                     }
-                    
-                    conexion.query(query, queryParams, async (err, result) => {
-                        if (err) {
-                            console.error('❌ Error saving paid booking:', err);
-                            return res.status(500).json({ error: 'Error saving booking' });
+
+                    console.log('✅ Reserva pagada guardada exitosamente en DB');
+
+                    // Enviar email de confirmación
+                    try {
+                        const bookingData = {
+                            customerName: metadata.customerName,
+                            customerEmail: metadata.customerEmail,
+                            customerPhone: metadata.customerPhone,
+                            serviceName: metadata.serviceName,
+                            serviceVariant: metadata.serviceVariant,
+                            appointmentDate: metadata.appointmentDate,
+                            totalAmount: metadata.totalAmount
+                        };
+
+                        console.log('📧 Enviando email con datos:', bookingData);
+                        
+                        const emailResult = await sendBookingConfirmation(bookingData, qrCode);
+                        
+                        if (emailResult.success) {
+                            console.log('✅ Email de confirmación enviado exitosamente');
+                        } else {
+                            console.error('❌ Error enviando email:', emailResult.error);
                         }
-
-                        console.log('✅ Reserva pagada guardada exitosamente en DB');
-
-                        // Enviar email de confirmación
-                        try {
-                            const bookingData = {
-                                customerName: metadata.customerName,
-                                customerEmail: metadata.customerEmail,
-                                customerPhone: metadata.customerPhone,
-                                serviceName: metadata.serviceName,
-                                serviceVariant: metadata.serviceVariant,
-                                appointmentDate: metadata.appointmentDate,
-                                totalAmount: metadata.totalAmount
-                            };
-
-                            console.log('📧 Enviando email con datos:', bookingData);
-                            
-                            const emailResult = await sendBookingConfirmation(bookingData, qrCode);
-                            
-                            if (emailResult.success) {
-                                console.log('✅ Email de confirmación enviado exitosamente');
-                            } else {
-                                console.error('❌ Error enviando email:', emailResult.error);
-                            }
-                        } catch (emailError) {
-                            console.error('❌ Error enviando email:', emailError);
-                        }
-                    });
+                    } catch (emailError) {
+                        console.error('❌ Error enviando email:', emailError);
+                    }
                 });
             }
         } else {
@@ -737,18 +689,12 @@ trackOrder(req, res) {
             ORDER BY pb.created_at DESC
         `;
 
-        ensureConnection((err) => {
+        pool.query(query, (err, results) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error fetching paid bookings:', err);
+                return res.status(500).json({ error: 'Error fetching bookings' });
             }
-            
-            conexion.query(query, (err, results) => {
-                if (err) {
-                    console.error('Error fetching paid bookings:', err);
-                    return res.status(500).json({ error: 'Error fetching bookings' });
-                }
-                res.json(results);
-            });
+            res.json(results);
         });
     },
 
@@ -756,27 +702,21 @@ trackOrder(req, res) {
         const { id } = req.params;
         const query = 'DELETE FROM paid_bookings WHERE id = ?';
 
-        ensureConnection((err) => {
+        pool.query(query, [id], (err, result) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error deleting paid booking:', err);
+                return res.status(500).json({ error: 'Error deleting booking' });
             }
-        
-            conexion.query(query, [id], (err, result) => {
-                if (err) {
-                    console.error('Error deleting paid booking:', err);
-                    return res.status(500).json({ error: 'Error deleting booking' });
-                }
-                
-                if (result.affectedRows === 0) {
-                    return res.status(404).json({ error: 'Booking not found' });
-                }
-                
-                console.log(`✅ Paid booking with ID ${id} deleted successfully`);
-                res.json({ 
-                    success: true, 
-                    message: 'Booking deleted successfully',
-                    deletedId: id 
-                });
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Booking not found' });
+            }
+            
+            console.log(`✅ Paid booking with ID ${id} deleted successfully`);
+            res.json({ 
+                success: true, 
+                message: 'Booking deleted successfully',
+                deletedId: id 
             });
         });
     },
@@ -801,37 +741,31 @@ trackOrder(req, res) {
             WHERE pb.qr_code = ? AND pb.status = 'paid'
         `;
 
-        ensureConnection((err) => {
+        pool.query(query, [qrCode], (err, results) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error validating QR:', err);
+                return res.status(500).json({ error: 'Error validating QR' });
             }
-            
-            conexion.query(query, [qrCode], (err, results) => {
-                if (err) {
-                    console.error('Error validating QR:', err);
-                    return res.status(500).json({ error: 'Error validating QR' });
+
+            if (results.length === 0) {
+                console.log('❌ QR no válido:', qrCode);
+                return res.status(404).json({ error: 'QR no válido o ya utilizado' });
+            }
+
+            console.log('✅ QR válido:', qrCode);
+
+            // Marcar como completado
+            const updateQuery = 'UPDATE paid_bookings SET status = "completed" WHERE qr_code = ?';
+            pool.query(updateQuery, [qrCode], (updateErr) => {
+                if (updateErr) {
+                    console.error('Error updating booking status:', updateErr);
                 }
+            });
 
-                if (results.length === 0) {
-                    console.log('❌ QR no válido:', qrCode);
-                    return res.status(404).json({ error: 'QR no válido o ya utilizado' });
-                }
-
-                console.log('✅ QR válido:', qrCode);
-
-                // Marcar como completado
-                const updateQuery = 'UPDATE paid_bookings SET status = "completed" WHERE qr_code = ?';
-                conexion.query(updateQuery, [qrCode], (updateErr) => {
-                    if (updateErr) {
-                        console.error('Error updating booking status:', updateErr);
-                    }
-                });
-
-                res.json({
-                    valid: true,
-                    booking: results[0],
-                    message: 'QR válido - Reserva completada'
-                });
+            res.json({
+                valid: true,
+                booking: results[0],
+                message: 'QR válido - Reserva completada'
             });
         });
     }

@@ -1,4 +1,4 @@
-const { conexion, ensureConnection } = require("../database");
+const { pool } = require("../database");
 
 const ritualesController = {
     // Endpoint de prueba simple
@@ -13,138 +13,102 @@ const ritualesController = {
 
     //funcion para obtener los rituales (TODOS, sin filtro de activos)
     getRituales(req, res) {
-        ensureConnection((err) => {
+        // Mostrar TODOS los rituales, sin filtro de activos
+        let comandoRituales = "SELECT * FROM rituales ORDER BY id_ritual DESC";
+        pool.query(comandoRituales, (err, resultados, campos) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error fetching rituales:', err);
+                return res.status(500).json({ error: err.message });
             }
-            
-            // Mostrar TODOS los rituales, sin filtro de activos
-            let comandoRituales = "SELECT * FROM rituales ORDER BY id_ritual DESC";
-            conexion.query(comandoRituales, (err, resultados, campos) => {
-                if (err) {
-                    console.error('Error fetching rituales:', err);
-                    return res.status(500).json({ error: err.message });
-                }
-                res.json(resultados);
-            });
+            res.json(resultados);
         });
     },
 
     //funcion para obtener los ultimos rituales (SOLO activos)
     getLatestRituales(req, res) {
-        ensureConnection((err) => {
+        // Solo rituales activos para la vista pública
+        let comandoRituales = "SELECT * FROM rituales WHERE active = true ORDER BY id_ritual DESC";
+        pool.query(comandoRituales, (err, resultados, campos) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error fetching latest rituales:', err);
+                return res.status(500).json({ error: err.message });
             }
-            
-            // Solo rituales activos para la vista pública
-            let comandoRituales = "SELECT * FROM rituales WHERE active = true ORDER BY id_ritual DESC";
-            conexion.query(comandoRituales, (err, resultados, campos) => {
-                if (err) {
-                    console.error('Error fetching latest rituales:', err);
-                    return res.status(500).json({ error: err.message });
-                }
-                res.json(resultados);
-            });
+            res.json(resultados);
         });
     },
 
     //funcion para registrar un ritual
     ritualFormSubmit(req, res) {
-        ensureConnection((err) => {
+        let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
+        
+        // active se establece automáticamente como true
+        let comandoForm = "INSERT INTO rituales (nombre_ritual, descripcion_ritual, precio_ritual, precio_ritualPareja, duracion_ritual, active) VALUES (?, ?, ?, ?, ?, true)";
+        pool.query(comandoForm, [nombre, descripcion, precio, precioPareja, duracion], (err, resultados) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error creating ritual:', err);
+                return res.status(500).json({ error: err.message });
             }
-            
-            let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
-            
-            // active se establece automáticamente como true
-            let comandoForm = "INSERT INTO rituales (nombre_ritual, descripcion_ritual, precio_ritual, precio_ritualPareja, duracion_ritual, active) VALUES (?, ?, ?, ?, ?, true)";
-            conexion.query(comandoForm, [nombre, descripcion, precio, precioPareja, duracion], (err, resultados) => {
-                if (err) {
-                    console.error('Error creating ritual:', err);
-                    return res.status(500).json({ error: err.message });
-                }
-                res.json({ 
-                    success: true, 
-                    message: 'Ritual creado exitosamente',
-                    id: resultados.insertId 
-                });
+            res.json({ 
+                success: true, 
+                message: 'Ritual creado exitosamente',
+                id: resultados.insertId 
             });
         });
     },
 
     //funcion para actualizar un ritual
     updateRitual(req, res) {
-        ensureConnection((err) => {
+        let { id } = req.params;
+        let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
+        
+        // active se mantiene como true automáticamente
+        let comandoUpdate = "UPDATE rituales SET nombre_ritual = ?, descripcion_ritual = ?, precio_ritual = ?, precio_ritualPareja = ?, duracion_ritual = ?, active = true WHERE id_ritual = ?";
+        pool.query(comandoUpdate, [nombre, descripcion, precio, precioPareja, duracion, id], (err, resultados) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error updating ritual:', err);
+                return res.status(500).json({ error: err.message });
             }
             
-            let { id } = req.params;
-            let { nombre, descripcion, precio, precioPareja, duracion } = req.body;
+            if (resultados.affectedRows === 0) {
+                return res.status(404).json({ error: 'Ritual no encontrado' });
+            }
             
-            // active se mantiene como true automáticamente
-            let comandoUpdate = "UPDATE rituales SET nombre_ritual = ?, descripcion_ritual = ?, precio_ritual = ?, precio_ritualPareja = ?, duracion_ritual = ?, active = true WHERE id_ritual = ?";
-            conexion.query(comandoUpdate, [nombre, descripcion, precio, precioPareja, duracion, id], (err, resultados) => {
-                if (err) {
-                    console.error('Error updating ritual:', err);
-                    return res.status(500).json({ error: err.message });
-                }
-                
-                if (resultados.affectedRows === 0) {
-                    return res.status(404).json({ error: 'Ritual no encontrado' });
-                }
-                
-                res.json({ 
-                    success: true, 
-                    message: 'Ritual actualizado exitosamente' 
-                });
+            res.json({ 
+                success: true, 
+                message: 'Ritual actualizado exitosamente' 
             });
         });
     },
 
     //funcion para eliminar un ritual
     deleteRitual(req, res) {
-        ensureConnection((err) => {
+        let { id } = req.params;
+        let comandoDelete = "DELETE FROM rituales WHERE id_ritual = ?";
+        pool.query(comandoDelete, [id], (err, resultados) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                res.status(500).json({ error: err.message });
+                return;
             }
-            
-            let { id } = req.params;
-            let comandoDelete = "DELETE FROM rituales WHERE id_ritual = ?";
-            conexion.query(comandoDelete, [id], (err, resultados) => {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                res.sendStatus(200);
-            });
+            res.sendStatus(200);
         });
     },
     toggleActive(req, res) {
-        ensureConnection((err) => {
+        const { id } = req.params;
+        
+        const query = 'UPDATE rituales SET active = NOT active WHERE id_ritual = ?';
+        
+        pool.query(query, [id], (err, result) => {
             if (err) {
-                return res.status(500).json({ error: 'Database connection failed' });
+                console.error('Error toggling service status:', err);
+                return res.status(500).json({ error: 'Error toggling service status' });
             }
             
-            const { id } = req.params;
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Service not found' });
+            }
             
-            const query = 'UPDATE rituales SET active = NOT active WHERE id_ritual = ?';
-            
-            conexion.query(query, [id], (err, result) => {
-                if (err) {
-                    console.error('Error toggling service status:', err);
-                    return res.status(500).json({ error: 'Error toggling service status' });
-                }
-                
-                if (result.affectedRows === 0) {
-                    return res.status(404).json({ error: 'Service not found' });
-                }
-                
-                console.log('✅ Estado del servicio cambiado exitosamente:', id);
-                res.json({ message: 'Estado del servicio cambiado exitosamente' });
-            });
+            console.log('✅ Estado del servicio cambiado exitosamente:', id);
+            res.json({ message: 'Estado del servicio cambiado exitosamente' });
         });
     }
 };
